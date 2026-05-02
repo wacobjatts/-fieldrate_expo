@@ -1,0 +1,2101 @@
+FIELD_RATE UI / SCREEN FILE DUMP
+Purpose: Send this to Gemini for UI/UX refinement only.
+Rules for Gemini:
+- Expo / React Native project
+- Do NOT convert to Vite
+- Do NOT change math/domain logic
+- Do NOT remove screens
+- Do NOT rewrite app from scratch
+- Refine UI/UX only
+
+============================================================
+FILE: App.tsx
+============================================================
+import React from "react";
+import { AppNavigator } from "./src/navigation/AppNavigator";
+
+export default function App() {
+  return <AppNavigator />;
+}
+
+============================================================
+FILE: src/navigation/AppNavigator.tsx
+============================================================
+import React, { useState, useCallback } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  StyleSheet,
+  Animated,
+  Dimensions,
+  StatusBar,
+} from "react-native";
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { COLORS } from "../theme/colors";
+
+import DashboardScreen from "../screens/DashboardScreen";
+import ProjectsScreen from "../screens/ProjectsScreen";
+import TasksScreen from "../screens/TasksScreen";
+import ScheduleScreen from "../screens/ScheduleScreen";
+import TimeCostScreen from "../screens/TimeCostScreen";
+import ScopeOfWorkScreen from "../screens/ScopeOfWorkScreen";
+import LogWorkScreen from "../screens/LogWorkScreen";
+import PerformanceScreen from "../screens/PerformanceScreen";
+import EstimateScreen from "../screens/EstimateScreen";
+import ReportsScreen from "../screens/ReportsScreen";
+
+export type RootTabParamList = {
+  Dashboard: undefined;
+  Projects: undefined;
+  Tasks: undefined;
+  Schedule: undefined;
+  "Time & Cost": undefined;
+  "Scope of Work": undefined;
+  "Log Work": undefined;
+  Performance: undefined;
+  Estimate: undefined;
+  Reports: undefined;
+};
+
+const Tab = createBottomTabNavigator<RootTabParamList>();
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
+
+type DrawerContextType = {
+  openDrawer: () => void;
+  closeDrawer: () => void;
+  isOpen: boolean;
+};
+
+export const DrawerContext = React.createContext<DrawerContextType>({
+  openDrawer: () => {},
+  closeDrawer: () => {},
+  isOpen: false,
+});
+
+const menuItems = [
+  { name: "Dashboard", icon: "grid" },
+  { name: "Projects", icon: "folder" },
+  { name: "Tasks", icon: "check-square" },
+  { name: "Schedule", icon: "calendar" },
+  { name: "Time & Cost", icon: "clock" },
+  { name: "Scope of Work", icon: "file-text" },
+  { name: "Reports", icon: "bar-chart" },
+  { name: "Log Work", icon: "edit" },
+  { name: "Performance", icon: "trending-up" },
+  { name: "Estimate", icon: "calculator" },
+];
+
+function DrawerContent({
+  navigation,
+  closeDrawer,
+  activeRoute,
+}: {
+  navigation: any;
+  closeDrawer: () => void;
+  activeRoute: string;
+}) {
+  return (
+    <View style={styles.drawerContent}>
+      <View style={styles.drawerHeader}>
+        <View style={styles.logoContainer}>
+          <Text style={styles.logoText}>FR</Text>
+        </View>
+        <Text style={styles.brandName}>FieldRate</Text>
+        <Text style={styles.brandTagline}>CONSTRUCTION INTELLIGENCE</Text>
+      </View>
+
+      <View style={styles.menuSection}>
+        {menuItems.map((item) => {
+          const isActive = activeRoute === item.name;
+          return (
+            <Pressable
+              key={item.name}
+              style={[styles.menuItem, isActive && styles.menuItemActive]}
+              onPress={() => {
+                navigation.navigate(item.name);
+                closeDrawer();
+              }}
+            >
+              <View
+                style={[
+                  styles.menuIconContainer,
+                  isActive && styles.menuIconContainerActive,
+                ]}
+              >
+                <MenuIcon name={item.icon} active={isActive} />
+              </View>
+              <Text style={[styles.menuText, isActive && styles.menuTextActive]}>
+                {item.name}
+              </Text>
+              {isActive && <View style={styles.activeIndicator} />}
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <View style={styles.drawerFooter}>
+        <Pressable style={styles.settingsButton}>
+          <Text style={styles.settingsText}>Settings</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function MenuIcon({ name, active }: { name: string; active: boolean }) {
+  const color = active ? COLORS.primary : COLORS.muted;
+  const icons: Record<string, string> = {
+    grid: "⬡",
+    folder: "◈",
+    "check-square": "☑",
+    calendar: "◫",
+    clock: "⏱",
+    "file-text": "☰",
+    "bar-chart": "▥",
+    edit: "✎",
+    "trending-up": "↗",
+    calculator: "▤",
+  };
+  return <Text style={[styles.iconText, { color }]}>{icons[name] || "○"}</Text>;
+}
+
+export function AppNavigator() {
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [activeRoute, setActiveRoute] = useState("Dashboard");
+  const slideAnim = React.useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+
+  const openDrawer = useCallback(() => {
+    setIsDrawerOpen(true);
+    Animated.spring(slideAnim, {
+      toValue: 0,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start();
+  }, [slideAnim]);
+
+  const closeDrawer = useCallback(() => {
+    Animated.spring(slideAnim, {
+      toValue: -DRAWER_WIDTH,
+      useNativeDriver: true,
+      tension: 65,
+      friction: 11,
+    }).start(() => setIsDrawerOpen(false));
+  }, [slideAnim]);
+
+  return (
+    <DrawerContext.Provider
+      value={{ openDrawer, closeDrawer, isOpen: isDrawerOpen }}
+    >
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      <View style={styles.container}>
+        <NavigationContainer
+          onStateChange={(state) => {
+            if (state?.routes) {
+              const route = state.routes[state.index];
+              setActiveRoute(route.name);
+            }
+          }}
+        >
+          <Tab.Navigator
+            screenOptions={{
+              headerShown: false,
+              tabBarStyle: styles.tabBar,
+              tabBarActiveTintColor: COLORS.primary,
+              tabBarInactiveTintColor: COLORS.dim,
+              tabBarLabelStyle: styles.tabBarLabel,
+            }}
+          >
+            <Tab.Screen
+              name="Dashboard"
+              component={DashboardScreen}
+              options={{ tabBarLabel: "Home" }}
+            />
+            <Tab.Screen name="Projects" component={ProjectsScreen} />
+            <Tab.Screen name="Tasks" component={TasksScreen} />
+            <Tab.Screen name="Schedule" component={ScheduleScreen} />
+            <Tab.Screen
+              name="Time & Cost"
+              component={TimeCostScreen}
+              options={{ tabBarLabel: "Cost" }}
+            />
+            <Tab.Screen
+              name="Scope of Work"
+              component={ScopeOfWorkScreen}
+              options={{ tabBarButton: () => null }}
+            />
+            <Tab.Screen
+              name="Log Work"
+              component={LogWorkScreen}
+              options={{ tabBarButton: () => null }}
+            />
+            <Tab.Screen
+              name="Performance"
+              component={PerformanceScreen}
+              options={{ tabBarButton: () => null }}
+            />
+            <Tab.Screen
+              name="Estimate"
+              component={EstimateScreen}
+              options={{ tabBarButton: () => null }}
+            />
+            <Tab.Screen
+              name="Reports"
+              component={ReportsScreen}
+              options={{ tabBarButton: () => null }}
+            />
+          </Tab.Navigator>
+        </NavigationContainer>
+
+        {isDrawerOpen && (
+          <Pressable style={styles.overlay} onPress={closeDrawer}>
+            <Animated.View
+              style={[
+                styles.overlayBackground,
+                {
+                  opacity: slideAnim.interpolate({
+                    inputRange: [-DRAWER_WIDTH, 0],
+                    outputRange: [0, 0.7],
+                  }),
+                },
+              ]}
+            />
+          </Pressable>
+        )}
+
+        <Animated.View
+          style={[
+            styles.drawer,
+            { transform: [{ translateX: slideAnim }] },
+          ]}
+        >
+          <DrawerContent
+            navigation={{ navigate: (name: string) => {} }}
+            closeDrawer={closeDrawer}
+            activeRoute={activeRoute}
+          />
+        </Animated.View>
+      </View>
+    </DrawerContext.Provider>
+  );
+
+============================================================
+FILE: src/theme/colors.ts
+============================================================
+export const COLORS = {
+  // Core backgrounds
+  background: "#000000",
+  surface: "#0a0e14",
+  surfaceElevated: "#0f1419",
+  
+  // Primary palette
+  primary: "#00d4ff",
+  primaryDim: "rgba(0, 212, 255, 0.15)",
+  primaryGlow: "rgba(0, 212, 255, 0.25)",
+  
+  // Accent (thermal/status)
+  accent: "#bf00ff",
+  
+  // Text hierarchy
+  text: "#e6faff",
+  muted: "#8b9bb4",
+  dim: "#4b5c72",
+  
+  // Thermal states
+  stable: "#00d4ff",      // cyan - stable
+  improving: "#00ffcc",    // teal - improving
+  worsening: "#ff00aa",    // magenta - worsening
+  
+  // Status colors
+  success: "#00ff9c",
+  warning: "#ffb800",
+  danger: "#ff3b3b",
+  
+  // UI elements
+  border: "rgba(0, 212, 255, 0.2)",
+  borderActive: "rgba(0, 212, 255, 0.5)",
+  cardBg: "rgba(10, 14, 20, 0.9)",
+};
+
+============================================================
+FILE: src/components/fieldrate/FieldRateScreen.tsx
+============================================================
+import React, { useContext } from "react";
+import {
+  ScrollView,
+  RefreshControlProps,
+  StyleSheet,
+  Text,
+  View,
+  Pressable,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { COLORS } from "../../theme/colors";
+import { DrawerContext } from "../../navigation/AppNavigator";
+
+type FieldRateScreenProps = {
+  title: string;
+  subtitle?: string;
+  children?: React.ReactNode;
+  refreshControl?: React.ReactElement<RefreshControlProps>;
+};
+
+export default function FieldRateScreen({
+  title,
+  subtitle,
+  children,
+  refreshControl,
+}: FieldRateScreenProps) {
+  const { openDrawer } = useContext(DrawerContext);
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Pressable style={styles.menuButton} onPress={openDrawer}>
+          <View style={styles.menuIcon}>
+            <View style={styles.menuLine} />
+            <View style={[styles.menuLine, styles.menuLineShort]} />
+            <View style={styles.menuLine} />
+          </View>
+        </Pressable>
+
+        <View style={styles.headerCenter}>
+          <Text style={styles.headerTitle}>{title}</Text>
+          {subtitle && <Text style={styles.headerSubtitle}>{subtitle}</Text>}
+        </View>
+
+        <View style={styles.headerRight} />
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={refreshControl}
+      >
+        <View style={styles.body}>{children}</View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  menuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  menuIcon: {
+    gap: 4,
+  },
+  menuLine: {
+    width: 18,
+    height: 2,
+    backgroundColor: COLORS.primary,
+    borderRadius: 1,
+  },
+  menuLineShort: {
+    width: 12,
+  },
+  headerCenter: {
+    alignItems: "center",
+    flex: 1,
+    marginHorizontal: 8,
+  },
+  headerTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  headerSubtitle: {
+    color: COLORS.dim,
+    fontSize: 11,
+    marginTop: 2,
+    textAlign: "center",
+  },
+  headerRight: {
+    width: 40,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  body: {
+    gap: 12,
+  },
+});
+
+============================================================
+FILE: src/components/fieldrate/FieldRateCard.tsx
+============================================================
+import React from "react";
+import { StyleSheet, Text, View } from "react-native";
+import { COLORS } from "../../theme/colors";
+
+type FieldRateCardProps = {
+  title: string;
+  children?: React.ReactNode;
+  variant?: "default" | "highlighted" | "compact";
+};
+
+export default function FieldRateCard({ 
+  title, 
+  children, 
+  variant = "default" 
+}: FieldRateCardProps) {
+  return (
+    <View style={[
+      styles.card,
+      variant === "highlighted" && styles.cardHighlighted,
+      variant === "compact" && styles.cardCompact,
+    ]}>
+      <Text style={[
+        styles.title,
+        variant === "highlighted" && styles.titleHighlighted,
+      ]}>
+        {title}
+      </Text>
+      <View style={styles.content}>{children}</View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  card: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 16,
+    padding: 16,
+    backgroundColor: COLORS.surface,
+  },
+  cardHighlighted: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryDim,
+  },
+  cardCompact: {
+    padding: 12,
+    borderRadius: 12,
+  },
+  title: {
+    color: COLORS.primary,
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 12,
+    letterSpacing: 0.5,
+  },
+  titleHighlighted: {
+    color: COLORS.text,
+  },
+  content: {
+    gap: 10,
+  },
+});
+
+============================================================
+FILE: src/screens/DashboardScreen.tsx
+============================================================
+import React, { useCallback, useContext, useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  Pressable,
+  RefreshControl,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { COLORS } from "../theme/colors";
+import { DrawerContext } from "../navigation/AppNavigator";
+import { jobRepository } from "../data/repositories/jobRepository";
+import { logRepository } from "../data/repositories/logRepository";
+import { summarizeLogsByTask } from "../domain/performanceMath";
+import type { Job } from "../types/job";
+import type { WorkLog } from "../types/log";
+
+export default function DashboardScreen() {
+  const { openDrawer } = useContext(DrawerContext);
+  const navigation = useNavigation();
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [logs, setLogs] = useState<WorkLog[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeJobExpanded, setActiveJobExpanded] = useState(false);
+
+  const loadData = useCallback(async () => {
+    const [jobData, logData] = await Promise.all([
+      jobRepository.getAll(),
+      logRepository.getAll(),
+    ]);
+    setJobs(jobData);
+    setLogs(logData);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData])
+  );
+
+  async function refresh() {
+    setRefreshing(true);
+    await loadData();
+    setRefreshing(false);
+  }
+
+  const summaries = summarizeLogsByTask(logs);
+  const totalManHours = logs.reduce((sum, log) => sum + log.manHours, 0);
+  const recentLogs = logs.slice(0, 5);
+  
+  // Calculate efficiency percentage based on performance
+  const avgEfficiency = summaries.length > 0 
+    ? Math.round(summaries.reduce((sum, s) => sum + (s.averageDifficulty / 5) * 100, 0) / summaries.length)
+    : 0;
+  
+  const efficiency = avgEfficiency > 0 ? 100 - avgEfficiency + 50 : 72;
+  const drift = logs.length > 0 ? "+2.3%" : "0%";
+
+  return (
+    <SafeAreaView style={styles.container} edges={["top"]}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable style={styles.menuButton} onPress={openDrawer}>
+            <View style={styles.menuIcon}>
+              <View style={styles.menuLine} />
+              <View style={[styles.menuLine, styles.menuLineShort]} />
+              <View style={styles.menuLine} />
+            </View>
+          </Pressable>
+
+          {/* Weather Capsule */}
+          <View style={styles.weatherCapsule}>
+            <Text style={styles.weatherIcon}>☀</Text>
+            <Text style={styles.weatherTemp}>72°F</Text>
+            <Text style={styles.weatherDesc}>Clear</Text>
+          </View>
+
+          {/* Hex Modules */}
+          <View style={styles.hexModules}>
+            <View style={styles.hexModule}>
+              <Text style={styles.hexValue}>{efficiency}%</Text>
+              <Text style={styles.hexLabel}>EFF</Text>
+            </View>
+            <View style={[styles.hexModule, styles.hexModuleAccent]}>
+              <Text style={styles.hexValueAccent}>{drift}</Text>
+              <Text style={styles.hexLabelAccent}>DRIFT</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Active Job Card */}
+        <Pressable
+          style={styles.activeJobCard}
+          onPress={() => setActiveJobExpanded(!activeJobExpanded)}
+        >
+          <View style={styles.activeJobHeader}>
+            <View style={styles.statusIndicator} />
+            <Text style={styles.activeJobLabel}>ACTIVE PROJECT</Text>
+          </View>
+
+          <Text style={styles.activeJobName}>
+            {jobs[0]?.name || "Riverside Tower"}
+          </Text>
+          <Text style={styles.activeJobAddress}>
+            {jobs[0]?.location || "1847 Harbor Rd"}
+          </Text>
+
+          {/* Visual Mode - Ring and Orb */}
+          <View style={styles.visualMode}>
+            <View style={styles.timeRing}>
+              <View style={styles.timeRingInner}>
+                <Text style={styles.timeRingValue}>52h</Text>
+                <Text style={styles.timeRingLabel}>logged</Text>
+              </View>
+              <View style={[styles.ringProgress, { transform: [{ rotate: "180deg" }] }]} />
+            </View>
+
+            <View style={styles.costOrb}>
+              <Text style={styles.costOrbValue}>$97k</Text>
+              <Text style={styles.costOrbLabel}>budget</Text>
+            </View>
+          </View>
+
+          {activeJobExpanded && (
+            <View style={styles.expandedContent}>
+              <View style={styles.expandedRow}>
+                <View style={styles.expandedStat}>
+                  <Text style={styles.expandedStatValue}>5</Text>
+                  <Text style={styles.expandedStatLabel}>Crew Size</Text>
+                </View>
+                <View style={styles.expandedStat}>
+                  <Text style={styles.expandedStatValue}>Phase 2</Text>
+                  <Text style={styles.expandedStatLabel}>Current Phase</Text>
+                </View>
+                <View style={styles.expandedStat}>
+                  <Text style={styles.expandedStatValue}>{logs.length}</Text>
+                  <Text style={styles.expandedStatLabel}>Work Logs</Text>
+                </View>
+              </View>
+
+              <View style={styles.actionButtons}>
+                <Pressable
+                  style={styles.actionButton}
+                  onPress={() => navigation.navigate("Projects" as never)}
+                >
+                  <Text style={styles.actionButtonText}>View Project</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.actionButton}
+                  onPress={() => navigation.navigate("Log Work" as never)}
+                >
+                  <Text style={styles.actionButtonText}>Add Log</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.actionButton}
+                  onPress={() => navigation.navigate("Estimate" as never)}
+                >
+                  <Text style={styles.actionButtonText}>Estimate</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
+          <Text style={styles.expandHint}>
+            {activeJobExpanded ? "Tap to collapse" : "Tap to expand"}
+          </Text>
+        </Pressable>
+
+        {/* Mid Row - Tasks and Recent Jobs */}
+        <View style={styles.midRow}>
+          {/* Tasks Capsule */}
+          <View style={styles.tasksCapsule}>
+            <View style={styles.capsuleHeader}>
+              <Text style={styles.capsuleTitle}>Tasks</Text>
+              <Text style={styles.capsuleCount}>{summaries.length}</Text>
+            </View>
+            {summaries.slice(0, 3).map((task, index) => (
+              <View key={index} style={styles.taskItem}>
+                <View style={styles.taskDot} />
+                <Text style={styles.taskText} numberOfLines={1}>
+                  {task.taskName}
+                </Text>
+              </View>
+            ))}
+            {summaries.length === 0 && (
+              <Text style={styles.emptyText}>No tasks yet</Text>
+            )}
+          </View>
+
+          {/* Recent Jobs */}
+          <View style={styles.recentJobs}>
+            <Text style={styles.capsuleTitle}>Recent</Text>
+            {recentLogs.slice(0, 3).map((log, index) => (
+              <View key={index} style={styles.recentItem}>
+                <Text style={styles.recentName} numberOfLines={1}>
+                  {log.jobName}
+                </Text>
+                <Text style={styles.recentMeta}>
+                  {log.manHours.toFixed(1)} MH
+                </Text>
+              </View>
+            ))}
+            {recentLogs.length === 0 && (
+              <Text style={styles.emptyText}>No recent logs</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Quick Actions */}
+        <View style={styles.quickActions}>
+          <Pressable
+            style={styles.quickAction}
+            onPress={() => navigation.navigate("Log Work" as never)}
+          >
+            <View style={styles.quickActionIcon}>
+              <Text style={styles.quickActionIconText}>+</Text>
+            </View>
+            <Text style={styles.quickActionText}>Log</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.quickAction}
+            onPress={() => navigation.navigate("Tasks" as never)}
+          >
+            <View style={styles.quickActionIcon}>
+              <Text style={styles.quickActionIconText}>☑</Text>
+            </View>
+            <Text style={styles.quickActionText}>Task</Text>
+          </Pressable>
+
+          <Pressable
+            style={styles.quickAction}
+            onPress={() => navigation.navigate("Projects" as never)}
+          >
+            <View style={styles.quickActionIcon}>
+              <Text style={styles.quickActionIconText}>◈</Text>
+            </View>
+            <Text style={styles.quickActionText}>Job</Text>
+          </Pressable>
+        </View>
+
+        {/* Production Summary */}
+        <View style={styles.summaryCard}>
+          <Text style={styles.summaryTitle}>Production Summary</Text>
+          <View style={styles.summaryGrid}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryValue}>{logs.length}</Text>
+
+============================================================
+FILE: src/screens/LogWorkScreen.tsx
+============================================================
+import React, { useMemo, useState } from "react";
+import {
+  Alert,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+
+import FieldRateCard from "../components/fieldrate/FieldRateCard";
+import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
+import { calculateLaborCost, calculateMHPerUnit, calculateManHours } from "../domain/fieldrateMath";
+import { logRepository } from "../data/repositories/logRepository";
+import { COLORS } from "../theme/colors";
+import type { ProductionUnit, WorkLog, WorkLogStatusTag } from "../types/log";
+
+const units: ProductionUnit[] = ["EA", "LF", "SF", "CY"];
+const statusTags: WorkLogStatusTag[] = ["standard", "exceptional", "problem"];
+
+type ScoreKey = "workFlow" | "planAccuracy" | "crewEfficiency" | "conditionImpact" | "communication";
+
+const scoreLabels: Record<ScoreKey, string> = {
+  workFlow: "Work Flow",
+  planAccuracy: "Plan Accuracy",
+  crewEfficiency: "Crew Efficiency",
+  conditionImpact: "Condition Impact",
+  communication: "Communication",
+};
+
+export default function LogWorkScreen() {
+  const [jobName, setJobName] = useState("Current Project");
+  const [phase, setPhase] = useState("General");
+  const [taskName, setTaskName] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unit, setUnit] = useState<ProductionUnit>("LF");
+  const [crewSize, setCrewSize] = useState("1");
+  const [hours, setHours] = useState("");
+  const [ratePerHour, setRatePerHour] = useState("");
+  const [notes, setNotes] = useState("");
+  const [statusTag, setStatusTag] = useState<WorkLogStatusTag>("standard");
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [scores, setScores] = useState<Record<ScoreKey, number>>({
+    workFlow: 3,
+    planAccuracy: 3,
+    crewEfficiency: 3,
+    conditionImpact: 3,
+    communication: 3,
+  });
+
+  const quantityNum = Number(quantity) || 0;
+  const crewNum = Number(crewSize) || 0;
+  const hoursNum = Number(hours) || 0;
+  const rateNum = Number(ratePerHour) || 0;
+
+  const manHours = useMemo(() => calculateManHours(crewNum, hoursNum), [crewNum, hoursNum]);
+  const mhPerUnit = useMemo(() => calculateMHPerUnit(manHours, quantityNum), [manHours, quantityNum]);
+  const laborCost = useMemo(() => calculateLaborCost(mhPerUnit, quantityNum, rateNum), [mhPerUnit, quantityNum, rateNum]);
+
+  const averageScore = useMemo(() => {
+    const values = Object.values(scores);
+    return values.reduce((sum, value) => sum + value, 0) / values.length;
+  }, [scores]);
+
+  const difficulty = Math.min(5, Math.max(1, Math.round(6 - averageScore))) as WorkLog["difficulty"];
+
+  const canSave = taskName.trim().length > 0 && quantityNum > 0 && crewNum > 0 && hoursNum > 0;
+
+  async function saveLog() {
+    if (!canSave) {
+      Alert.alert("Missing log info", "Add a task, quantity, crew size, and hours on site.");
+      return;
+    }
+
+    const log: WorkLog = {
+      id: String(Date.now()),
+      jobId: "local-project",
+      jobName: jobName.trim() || "Current Project",
+      phase: phase.trim() || "General",
+      date: new Date().toISOString(),
+      taskName: taskName.trim(),
+      quantity: quantityNum,
+      unit,
+      crewSize: crewNum,
+      hours: hoursNum,
+      manHours,
+      mhPerUnit,
+      ratePerHour: rateNum || undefined,
+      laborCost: rateNum ? laborCost : undefined,
+      workFlow: scores.workFlow,
+      planAccuracy: scores.planAccuracy,
+      crewEfficiency: scores.crewEfficiency,
+      conditionImpact: scores.conditionImpact,
+      communication: scores.communication,
+      difficulty,
+      statusTag,
+      notes: notes.trim() || undefined,
+    };
+
+    await logRepository.save(log);
+    setTaskName("");
+    setQuantity("");
+    setHours("");
+    setNotes("");
+    setStatusTag("standard");
+    Alert.alert("Work logged", "This production rate is saved to FieldRate history.");
+  }
+
+  return (
+    <FieldRateScreen
+      title="Log Work"
+      subtitle="Record field production"
+    >
+      <FieldRateCard title="Active Project">
+        <LabeledInput label="Project" value={jobName} onChangeText={setJobName} />
+        <LabeledInput label="Phase" value={phase} onChangeText={setPhase} />
+      </FieldRateCard>
+
+      <FieldRateCard title="Log a Task">
+        <LabeledInput
+          label="Task"
+          value={taskName}
+          onChangeText={setTaskName}
+          placeholder="What work was done?"
+        />
+
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <LabeledInput
+              label="Quantity"
+              value={quantity}
+              onChangeText={setQuantity}
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={styles.unitBox}>
+            <Text style={styles.label}>Unit</Text>
+            <View style={styles.unitGrid}>
+              {units.map((item) => (
+                <Pill key={item} label={item} active={unit === item} onPress={() => setUnit(item)} />
+              ))}
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <View style={styles.flex}>
+            <LabeledInput label="Crew Size" value={crewSize} onChangeText={setCrewSize} keyboardType="decimal-pad" />
+          </View>
+          <View style={styles.flex}>
+            <LabeledInput label="Hours on Site" value={hours} onChangeText={setHours} keyboardType="decimal-pad" />
+          </View>
+        </View>
+
+        <View style={styles.mathBox}>
+          <Text style={styles.mathText}>{crewNum || 0} x {hoursNum || 0} = {formatNumber(manHours)} MH</Text>
+          <Text style={styles.muted}>{formatNumber(mhPerUnit)} MH / {unit}</Text>
+        </View>
+
+        <LabeledInput label="Rate" value={ratePerHour} onChangeText={setRatePerHour} keyboardType="decimal-pad" placeholder="Optional labor rate" />
+      </FieldRateCard>
+
+      <FieldRateCard title="Production Conditions">
+        {(Object.keys(scoreLabels) as ScoreKey[]).map((key) => (
+          <ScoreRow
+            key={key}
+            label={scoreLabels[key]}
+            value={scores[key]}
+            onChange={(value) => setScores((current) => ({ ...current, [key]: value }))}
+          />
+        ))}
+      </FieldRateCard>
+
+      <FieldRateCard title="Additional Details">
+        <Pressable style={styles.detailToggle} onPress={() => setDetailsOpen((value) => !value)}>
+          <Text style={styles.detailText}>{detailsOpen ? "Hide Details" : "Add More Detail"}</Text>
+        </Pressable>
+
+        {detailsOpen ? (
+          <>
+            <LabeledInput
+              label="Notes"
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Delays, conditions, wins..."
+              multiline
+            />
+            <Text style={styles.label}>Day Tag</Text>
+            <View style={styles.tagRow}>
+              {statusTags.map((tag) => (
+                <Pill
+                  key={tag}
+                  label={tag === "standard" ? "Standard" : tag === "exceptional" ? "Exceptional" : "Problem"}
+                  active={statusTag === tag}
+                  onPress={() => setStatusTag(tag)}
+                />
+              ))}
+            </View>
+          </>
+        ) : null}
+      </FieldRateCard>
+
+      <Pressable style={[styles.saveButton, !canSave && styles.saveButtonDisabled]} onPress={saveLog}>
+        <Text style={styles.saveText}>Log Work</Text>
+      </Pressable>
+    </FieldRateScreen>
+  );
+}
+
+type LabeledInputProps = {
+  label: string;
+  value: string;
+  onChangeText: (value: string) => void;
+  placeholder?: string;
+  keyboardType?: "default" | "decimal-pad";
+  multiline?: boolean;
+};
+
+function LabeledInput({ label, value, onChangeText, placeholder, keyboardType = "default", multiline = false }: LabeledInputProps) {
+  return (
+    <View style={styles.inputGroup}>
+      <Text style={styles.label}>{label}</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor={COLORS.dim}
+        keyboardType={keyboardType}
+        multiline={multiline}
+        style={[styles.input, multiline && styles.textArea]}
+      />
+    </View>
+  );
+}
+
+type PillProps = {
+  label: string;
+  active: boolean;
+  onPress: () => void;
+};
+
+function Pill({ label, active, onPress }: PillProps) {
+  return (
+    <Pressable style={[styles.pill, active && styles.pillActive]} onPress={onPress}>
+      <Text style={[styles.pillText, active && styles.pillTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+type ScoreRowProps = {
+  label: string;
+  value: number;
+  onChange: (value: number) => void;
+};
+
+function ScoreRow({ label, value, onChange }: ScoreRowProps) {
+  return (
+    <View style={styles.scoreRow}>
+      <Text style={styles.scoreLabel}>{label}</Text>
+      <View style={styles.scorePills}>
+
+============================================================
+FILE: src/screens/ScopeOfWorkScreen.tsx
+============================================================
+import React, { useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import * as Clipboard from "expo-clipboard";
+
+import FieldRateCard from "../components/fieldrate/FieldRateCard";
+import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
+import { logRepository } from "../data/repositories/logRepository";
+import { calculateEstimate } from "../domain/estimateMath";
+import { summarizeLogsByTask, type TaskRateSummary } from "../domain/performanceMath";
+import { COLORS } from "../theme/colors";
+import type { ScopeItem } from "../types/scope";
+import type { WorkLog } from "../types/log";
+
+export default function ScopeOfWorkScreen() {
+  const [projectName, setProjectName] = useState("Untitled Project");
+  const [clientName, setClientName] = useState("");
+  const [jobAddress, setJobAddress] = useState("");
+  const [scope, setScope] = useState<ScopeItem[]>([]);
+  const [summaries, setSummaries] = useState<TaskRateSummary[]>([]);
+  const [logs, setLogs] = useState<WorkLog[]>([]);
+  const [activePhaseId, setActivePhaseId] = useState("default");
+  const [activePhaseName, setActivePhaseName] = useState("General");
+  const [rate, setRate] = useState("85");
+
+  useEffect(() => {
+    logRepository.getAll().then((logs) => {
+      setLogs(logs);
+      setSummaries(summarizeLogsByTask(logs));
+    });
+  }, []);
+
+  function addLine() {
+    setScope((prev) => [
+      ...prev,
+      { id: Date.now().toString(), taskName: "", quantity: 0, phaseId: activePhaseId, phaseName: activePhaseName, lineType: "selfPerform" },
+    ]);
+  }
+
+  function updateLine(id: string, patch: Partial<ScopeItem>) {
+    setScope((prev) => prev.map((line) => (line.id === id ? { ...line, ...patch } : line)));
+  }
+
+  function removeLine(id: string) {
+    setScope((prev) => prev.filter((line) => line.id !== id));
+  }
+
+  const phases = useMemo(() => {
+    const map = new Map<string, string>();
+    map.set("default", "General");
+    scope.forEach((line) => map.set(line.phaseId || "default", line.phaseName || "General"));
+    map.set(activePhaseId, activePhaseName || "General");
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
+  }, [scope, activePhaseId, activePhaseName]);
+
+  function calculateLine(line: ScopeItem) {
+    const summary = summaries.find((item) => item.taskName === line.taskName);
+
+    const estimate = calculateEstimate({
+      quantity: line.quantity,
+      mhPerUnit: summary?.averageMHPerUnit || 0,
+      ratePerHour: Number(rate) || 0,
+      difficultyFactor: 1,
+      contingencyPercent: 0,
+    });
+
+    const type = line.lineType || "selfPerform";
+
+    if (type === "subcontractor") {
+      const bid = line.subcontractorBid || 0;
+      const markup = line.subcontractorMarkup || 0;
+      const total = bid * (1 + markup);
+      return { line, estimate: { totalManHours: 0, laborSubtotal: bid, contingencyAmount: total - bid, bidTotal: total } };
+    }
+
+    if (type === "allowance") {
+      const value = line.quantity || 0;
+      return { line, estimate: { totalManHours: 0, laborSubtotal: value, contingencyAmount: 0, bidTotal: value } };
+    }
+
+    if (type === "credit") {
+      const value = -(line.quantity || 0);
+      return { line, estimate: { totalManHours: 0, laborSubtotal: value, contingencyAmount: 0, bidTotal: value } };
+    }
+
+    return { line, estimate };
+  }
+
+  const lineResults = useMemo(() => {
+    return scope
+      .filter((line) => (line.phaseId || "default") === activePhaseId)
+      .map(calculateLine);
+  }, [scope, summaries, rate, activePhaseId]);
+
+  const allLineResults = useMemo(() => {
+    return scope.map(calculateLine);
+  }, [scope, summaries, rate]);
+
+  const actualsByTask = useMemo(() => {
+    return logs.reduce<Record<string, { manHours: number; laborCost: number }>>((acc, log) => {
+      const key = log.taskName;
+      if (!acc[key]) acc[key] = { manHours: 0, laborCost: 0 };
+      acc[key].manHours += log.manHours || 0;
+      acc[key].laborCost += log.laborCost || 0;
+      return acc;
+    }, {});
+  }, [logs]);
+
+  const healthTotals = allLineResults.reduce(
+    (acc, item) => {
+      const actual = actualsByTask[item.line.taskName];
+      acc.estimatedHours += item.estimate.totalManHours || 0;
+      acc.estimatedCost += item.estimate.bidTotal || 0;
+      acc.actualHours += actual?.manHours || 0;
+      acc.actualCost += actual?.laborCost || 0;
+      return acc;
+    },
+    { estimatedHours: 0, actualHours: 0, estimatedCost: 0, actualCost: 0 }
+  );
+
+  const hourDrift = healthTotals.actualHours - healthTotals.estimatedHours;
+  const costDrift = healthTotals.actualCost - healthTotals.estimatedCost;
+  const costDriftPercent = healthTotals.estimatedCost > 0 ? costDrift / healthTotals.estimatedCost : 0;
+
+  const healthLabel = costDriftPercent <= 0 ? "On Track" : costDriftPercent <= 0.1 ? "Watch" : "Over Budget";
+  const healthColor = costDriftPercent <= 0 ? COLORS.success : costDriftPercent <= 0.1 ? COLORS.warning : COLORS.danger;
+
+  const projectTotals = allLineResults.reduce((acc, item) => {
+    const type = item.line.lineType || "selfPerform";
+    if (type === "subcontractor") acc.subs += item.estimate.bidTotal;
+    else if (type === "allowance") acc.allowances += item.estimate.bidTotal;
+    else if (type === "credit") acc.credits += item.estimate.bidTotal;
+    else acc.self += item.estimate.bidTotal;
+    acc.total += item.estimate.bidTotal;
+    return acc;
+  }, { self: 0, subs: 0, allowances: 0, credits: 0, total: 0 });
+
+  const totals = lineResults.reduce((acc, item) => {
+    const type = item.line.lineType || "selfPerform";
+    if (type === "subcontractor") acc.subs += item.estimate.bidTotal;
+    else if (type === "allowance") acc.allowances += item.estimate.bidTotal;
+    else if (type === "credit") acc.credits += item.estimate.bidTotal;
+    else acc.self += item.estimate.bidTotal;
+    acc.total += item.estimate.bidTotal;
+    return acc;
+  }, { self: 0, subs: 0, allowances: 0, credits: 0, total: 0 });
+
+  const projectedProfitLoss = projectTotals.total - healthTotals.actualCost;
+
+  function buildEstimateText(mode: "phase" | "project") {
+    const data = mode === "phase" ? lineResults : allLineResults;
+    const rows = data.map((item, index) => {
+      const line = item.line;
+      const est = item.estimate;
+      const type = line.lineType || "selfPerform";
+      return [
+        `${index + 1}. ${line.taskName || "Unassigned Task"}`,
+        `Type: ${type}`,
+        `Quantity: ${line.quantity}`,
+        `Total: $${est.bidTotal.toFixed(2)}`,
+      ].join("\n");
+    });
+    const totalAmount = data.reduce((sum, item) => sum + item.estimate.bidTotal, 0);
+    return [
+      projectName,
+      clientName ? `Client: ${clientName}` : "",
+      jobAddress ? `Job Address: ${jobAddress}` : "",
+      "",
+      mode === "phase" ? `Phase: ${activePhaseName}` : "Full Project",
+      "",
+      ...rows,
+      "",
+      "--------------------",
+      `Total: $${totalAmount.toFixed(2)}`,
+    ].filter(Boolean).join("\n");
+  }
+
+  return (
+    <FieldRateScreen title="Scope of Work" subtitle="Build and track project scope">
+      {/* Project Settings */}
+      <FieldRateCard title="Project Settings">
+        <View style={styles.copyButtons}>
+          <Pressable style={styles.copyButton} onPress={async () => Clipboard.setStringAsync(buildEstimateText("phase"))}>
+            <Text style={styles.copyButtonText}>Copy Phase</Text>
+          </Pressable>
+          <Pressable style={styles.copyButton} onPress={async () => Clipboard.setStringAsync(buildEstimateText("project"))}>
+            <Text style={styles.copyButtonText}>Copy Project</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Project Name</Text>
+          <TextInput value={projectName} onChangeText={setProjectName} style={styles.input} />
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Client Name</Text>
+          <TextInput value={clientName} onChangeText={setClientName} placeholder="Optional" placeholderTextColor={COLORS.dim} style={styles.input} />
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Job Address</Text>
+          <TextInput value={jobAddress} onChangeText={setJobAddress} placeholder="Optional" placeholderTextColor={COLORS.dim} style={styles.input} />
+        </View>
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Rate / Hr ($)</Text>
+          <TextInput value={rate} onChangeText={setRate} keyboardType="decimal-pad" style={styles.input} />
+        </View>
+      </FieldRateCard>
+
+      {/* Phase Selection */}
+      <FieldRateCard title="Phase">
+        <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Phase Name</Text>
+          <TextInput value={activePhaseName} onChangeText={setActivePhaseName} style={styles.input} />
+        </View>
+        <View style={styles.phaseList}>
+          {phases.map((phase) => (
+            <Pressable 
+              key={phase.id} 
+              style={[styles.phaseChip, activePhaseId === phase.id && styles.phaseChipActive]}
+              onPress={() => { setActivePhaseId(phase.id); setActivePhaseName(phase.name); }}
+            >
+              <Text style={[styles.phaseChipText, activePhaseId === phase.id && styles.phaseChipTextActive]}>
+                {phase.name}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Pressable style={styles.addPhaseButton} onPress={() => { const id = Date.now().toString(); setActivePhaseId(id); setActivePhaseName("New Phase"); }}>
+          <Text style={styles.addPhaseText}>+ New Phase</Text>
+        </Pressable>
+      </FieldRateCard>
+
+      {/* Scope Lines */}
+      <FieldRateCard title="Scope Lines">
+        {lineResults.map((item) => (
+          <View key={item.line.id} style={styles.scopeLine}>
+            {/* Line Type Selection */}
+            <View style={styles.lineTypeRow}>
+              {(["selfPerform", "subcontractor", "allowance", "credit"] as const).map((type) => (
+                <Pressable 
+                  key={type} 
+                  style={[styles.lineTypeChip, item.line.lineType === type && styles.lineTypeChipActive]}
+                  onPress={() => updateLine(item.line.id, { lineType: type })}
+                >
+                  <Text style={[styles.lineTypeText, item.line.lineType === type && styles.lineTypeTextActive]}>
+                    {type === "selfPerform" ? "Self" : type === "subcontractor" ? "Sub" : type === "allowance" ? "Allow" : "Credit"}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <TextInput
+              value={item.line.taskName}
+              onChangeText={(text) => updateLine(item.line.id, { taskName: text })}
+              placeholder="Task name"
+              placeholderTextColor={COLORS.dim}
+              style={styles.input}
+            />
+            <TextInput
+              value={String(item.line.quantity || "")}
+              onChangeText={(text) => updateLine(item.line.id, { quantity: Number(text) || 0 })}
+
+============================================================
+FILE: src/screens/EstimateScreen.tsx
+============================================================
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+
+import FieldRateCard from "../components/fieldrate/FieldRateCard";
+import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
+import { logRepository } from "../data/repositories/logRepository";
+import { calculateEstimate } from "../domain/estimateMath";
+import { summarizeLogsByTask, type TaskRateSummary } from "../domain/performanceMath";
+import { COLORS } from "../theme/colors";
+
+import type { WorkLog } from "../types/log";
+
+export default function EstimateScreen() {
+  const [logs, setLogs] = useState<WorkLog[]>([]);
+  const [summaries, setSummaries] = useState<TaskRateSummary[]>([]);
+  const [selected, setSelected] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [rate, setRate] = useState("85");
+  const [diff, setDiff] = useState("1.15");
+  const [cont, setCont] = useState("0.1");
+  const [refreshing, setRefreshing] = useState(false);
+
+  const load = useCallback(async () => {
+    const data = await logRepository.getAll();
+    const s = summarizeLogsByTask(data);
+    setLogs(data);
+    setSummaries(s);
+    if (s.length && !selected) setSelected(s[0].taskName);
+  }, [selected]);
+
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load])
+  );
+
+  async function refresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
+
+  const sel = summaries.find((s) => s.taskName === selected);
+
+  const est = useMemo(() =>
+    calculateEstimate({
+      quantity: Number(quantity) || 0,
+      mhPerUnit: sel?.averageMHPerUnit || 0,
+      ratePerHour: Number(rate) || 0,
+      difficultyFactor: Number(diff) || 1,
+      contingencyPercent: Number(cont) || 0,
+    }),
+    [quantity, rate, diff, cont, sel]
+  );
+
+  return (
+    <FieldRateScreen 
+      title="Estimate" 
+      subtitle="Build estimates from field rates"
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={COLORS.primary} />}
+    >
+      {/* Rate Selection */}
+      <FieldRateCard title="Select Rate">
+        {summaries.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>
+              No rates available. Log work first to build rate memory.
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.rateGrid}>
+            {summaries.map((s) => (
+              <Pressable 
+                key={s.taskName} 
+                style={[styles.rateCard, selected === s.taskName && styles.rateCardActive]}
+                onPress={() => setSelected(s.taskName)}
+              >
+                <Text style={[styles.rateName, selected === s.taskName && styles.rateNameActive]}>
+                  {s.taskName}
+                </Text>
+                <Text style={[styles.rateValue, selected === s.taskName && styles.rateValueActive]}>
+                  {s.averageMHPerUnit.toFixed(2)} MH/{s.unit}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </FieldRateCard>
+
+      {/* Inputs */}
+      <FieldRateCard title="Estimate Inputs">
+        <View style={styles.inputRow}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Quantity</Text>
+            <TextInput 
+              value={quantity} 
+              onChangeText={setQuantity} 
+              placeholder="0" 
+              placeholderTextColor={COLORS.dim}
+              keyboardType="decimal-pad"
+              style={styles.input} 
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Rate/Hr ($)</Text>
+            <TextInput 
+              value={rate} 
+              onChangeText={setRate} 
+              placeholder="85" 
+              placeholderTextColor={COLORS.dim}
+              keyboardType="decimal-pad"
+              style={styles.input} 
+            />
+          </View>
+        </View>
+
+        <View style={styles.inputRow}>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Difficulty Factor</Text>
+            <TextInput 
+              value={diff} 
+              onChangeText={setDiff} 
+              placeholder="1.15" 
+              placeholderTextColor={COLORS.dim}
+              keyboardType="decimal-pad"
+              style={styles.input} 
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Contingency %</Text>
+            <TextInput 
+              value={cont} 
+              onChangeText={setCont} 
+              placeholder="0.1" 
+              placeholderTextColor={COLORS.dim}
+              keyboardType="decimal-pad"
+              style={styles.input} 
+            />
+          </View>
+        </View>
+      </FieldRateCard>
+
+      {/* Result */}
+      <FieldRateCard title="Estimate Result" variant="highlighted">
+        <View style={styles.resultContainer}>
+          <View style={styles.resultRow}>
+            <Text style={styles.resultLabel}>Selected Rate</Text>
+            <Text style={styles.resultValue}>
+              {sel ? `${sel.averageMHPerUnit.toFixed(2)} MH/${sel.unit}` : "—"}
+            </Text>
+          </View>
+
+          <View style={styles.resultRow}>
+            <Text style={styles.resultLabel}>Man Hours</Text>
+            <Text style={styles.resultValue}>{est.totalManHours.toFixed(2)} MH</Text>
+          </View>
+
+          <View style={styles.resultRow}>
+            <Text style={styles.resultLabel}>Labor Subtotal</Text>
+            <Text style={styles.resultValue}>${est.laborSubtotal.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.resultRow}>
+            <Text style={styles.resultLabel}>Contingency</Text>
+            <Text style={styles.resultValue}>${est.contingencyAmount.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Bid Total</Text>
+            <Text style={styles.totalValue}>${est.bidTotal.toFixed(2)}</Text>
+          </View>
+        </View>
+      </FieldRateCard>
+
+      {/* Quick Reference */}
+      {sel && (
+        <FieldRateCard title="Rate Details">
+          <View style={styles.detailGrid}>
+            <View style={styles.detailItem}>
+              <Text style={styles.detailValue}>{sel.logCount}</Text>
+              <Text style={styles.detailLabel}>Logs</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Text style={[styles.detailValue, styles.successText]}>{sel.bestMHPerUnit.toFixed(2)}</Text>
+              <Text style={styles.detailLabel}>Best Rate</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Text style={[styles.detailValue, styles.warningText]}>{sel.worstMHPerUnit.toFixed(2)}</Text>
+              <Text style={styles.detailLabel}>Worst Rate</Text>
+            </View>
+            <View style={styles.detailItem}>
+              <Text style={styles.detailValue}>{sel.averageDifficulty.toFixed(1)}</Text>
+              <Text style={styles.detailLabel}>Avg Difficulty</Text>
+            </View>
+          </View>
+        </FieldRateCard>
+      )}
+    </FieldRateScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  emptyState: {
+    paddingVertical: 20,
+    alignItems: "center",
+  },
+  emptyText: {
+    color: COLORS.dim,
+    fontSize: 12,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+  rateGrid: {
+    gap: 8,
+  },
+  rateCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+  },
+  rateCardActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryDim,
+  },
+  rateName: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  rateNameActive: {
+    color: COLORS.text,
+  },
+  rateValue: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  rateValueActive: {
+    color: COLORS.primary,
+  },
+  inputRow: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  inputGroup: {
+
+============================================================
+FILE: src/screens/PerformanceScreen.tsx
+============================================================
+import React, { useCallback, useState } from "react";
+import {
+  Pressable,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+
+import FieldRateCard from "../components/fieldrate/FieldRateCard";
+import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
+import { logRepository } from "../data/repositories/logRepository";
+import {
+  calculateOverallAverageMHPerUnit,
+  summarizeLogsByTask,
+  type TaskRateSummary,
+} from "../domain/performanceMath";
+import { COLORS } from "../theme/colors";
+import type { WorkLog } from "../types/log";
+
+export default function PerformanceScreen() {
+  const [logs, setLogs] = useState<WorkLog[]>([]);
+  const [summaries, setSummaries] = useState<TaskRateSummary[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const loadPerformance = useCallback(async () => {
+    const savedLogs = await logRepository.getAll();
+    setLogs(savedLogs);
+    setSummaries(summarizeLogsByTask(savedLogs));
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadPerformance();
+    }, [loadPerformance])
+  );
+
+  async function deleteLog(logId: string) {
+    await logRepository.remove(logId);
+    await loadPerformance();
+  }
+
+  async function refresh() {
+    setRefreshing(true);
+    await loadPerformance();
+    setRefreshing(false);
+  }
+
+  const totalManHours = logs.reduce((total, log) => total + log.manHours, 0);
+  const totalQuantity = logs.reduce((total, log) => total + log.quantity, 0);
+  const overallRate = calculateOverallAverageMHPerUnit(logs);
+
+  return (
+    <FieldRateScreen
+      title="Performance"
+      subtitle="Analyze production rates"
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={COLORS.primary} />
+      }
+    >
+      <FieldRateCard title="Production Summary">
+        <View style={styles.metricGrid}>
+          <MetricCard label="Logs" value={String(logs.length)} />
+          <MetricCard label="Total Quantity" value={formatNumber(totalQuantity)} />
+          <MetricCard label="Total MH" value={formatNumber(totalManHours)} />
+          <MetricCard label="Avg MH/Unit" value={formatNumber(overallRate)} highlight />
+        </View>
+      </FieldRateCard>
+
+      <FieldRateCard title="Rate Memory">
+        {summaries.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>+</Text>
+            <Text style={styles.emptyText}>
+              No rate memory yet. Log work first to build performance history.
+            </Text>
+          </View>
+        ) : (
+          summaries.map((summary) => (
+            <View key={`${summary.taskName}-${summary.unit}`} style={styles.summaryItem}>
+              <View style={styles.summaryHeader}>
+                <Text style={styles.taskName}>{summary.taskName}</Text>
+                <Text style={styles.unit}>{summary.unit}</Text>
+              </View>
+
+              <View style={styles.summaryStats}>
+                <View style={styles.summaryStat}>
+                  <Text style={styles.summaryStatValue}>{summary.logCount}</Text>
+                  <Text style={styles.summaryStatLabel}>Logs</Text>
+                </View>
+                <View style={styles.summaryStat}>
+                  <Text style={[styles.summaryStatValue, styles.primaryValue]}>
+                    {formatNumber(summary.averageMHPerUnit)}
+                  </Text>
+                  <Text style={styles.summaryStatLabel}>Avg MH</Text>
+                </View>
+                <View style={styles.summaryStat}>
+                  <Text style={[styles.summaryStatValue, styles.successValue]}>
+                    {formatNumber(summary.bestMHPerUnit)}
+                  </Text>
+                  <Text style={styles.summaryStatLabel}>Best</Text>
+                </View>
+                <View style={styles.summaryStat}>
+                  <Text style={[styles.summaryStatValue, styles.warningValue]}>
+                    {formatNumber(summary.worstMHPerUnit)}
+                  </Text>
+                  <Text style={styles.summaryStatLabel}>Worst</Text>
+                </View>
+              </View>
+
+              <View style={styles.difficultyRow}>
+                <Text style={styles.difficultyLabel}>Difficulty</Text>
+                <View style={styles.difficultyBar}>
+                  <View 
+                    style={[
+                      styles.difficultyFill, 
+                      { width: `${(summary.averageDifficulty / 5) * 100}%` }
+                    ]} 
+                  />
+                </View>
+                <Text style={styles.difficultyValue}>{formatNumber(summary.averageDifficulty)}/5</Text>
+              </View>
+            </View>
+          ))
+        )}
+      </FieldRateCard>
+
+      <FieldRateCard title="Recent Logs">
+        {logs.length === 0 ? (
+          <Text style={styles.emptyText}>No logs yet.</Text>
+        ) : (
+          logs.slice(0, 10).map((log) => (
+            <View key={log.id} style={styles.logItem}>
+              <View style={styles.logHeader}>
+                <Text style={styles.logTaskName}>{log.taskName}</Text>
+                <Text style={styles.logDate}>
+                  {new Date(log.date).toLocaleDateString()}
+                </Text>
+              </View>
+              <Text style={styles.logMeta}>
+                {log.quantity} {log.unit} - {log.manHours.toFixed(1)} MH - {log.mhPerUnit.toFixed(2)} MH/unit
+              </Text>
+              <Pressable style={styles.deleteButton} onPress={() => deleteLog(log.id)}>
+                <Text style={styles.deleteText}>Delete</Text>
+              </Pressable>
+            </View>
+          ))
+        )}
+      </FieldRateCard>
+    </FieldRateScreen>
+  );
+}
+
+type MetricCardProps = {
+  label: string;
+  value: string;
+  highlight?: boolean;
+};
+
+function MetricCard({ label, value, highlight }: MetricCardProps) {
+  return (
+    <View style={[styles.metric, highlight && styles.metricHighlight]}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <Text style={[styles.metricValue, highlight && styles.metricValueHighlight]}>{value}</Text>
+    </View>
+  );
+}
+
+function formatNumber(value: number) {
+  if (!Number.isFinite(value)) return "0";
+  return value % 1 === 0 ? String(value) : value.toFixed(2);
+}
+
+const styles = StyleSheet.create({
+  metricGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  metric: {
+    minWidth: "46%",
+    flexGrow: 1,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 12,
+    backgroundColor: COLORS.background,
+  },
+  metricHighlight: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryDim,
+  },
+  metricLabel: {
+    color: COLORS.dim,
+    fontSize: 10,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  metricValue: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "800",
+  },
+  metricValueHighlight: {
+    color: COLORS.primary,
+  },
+  emptyState: {
+    alignItems: "center",
+    paddingVertical: 24,
+  },
+  emptyIcon: {
+    fontSize: 32,
+    color: COLORS.dim,
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: COLORS.dim,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: "center",
+  },
+  summaryItem: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 14,
+    backgroundColor: COLORS.background,
+    marginBottom: 8,
+  },
+  summaryHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  taskName: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "700",
+    flex: 1,
+  },
+  unit: {
+    color: COLORS.primary,
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  summaryStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+  summaryStat: {
+    alignItems: "center",
+  },
+  summaryStatValue: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+============================================================
+FILE: src/screens/ProjectHistoryScreen.tsx
+============================================================
+import React, { useCallback, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useFocusEffect } from "@react-navigation/native";
+
+import FieldRateCard from "../components/fieldrate/FieldRateCard";
+import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
+import { activeProjectRepository } from "../data/repositories/activeProjectRepository";
+import { projectRepository } from "../data/repositories/projectRepository";
+import { COLORS } from "../theme/colors";
+import type { Project } from "../types/project";
+
+export default function ProjectHistoryScreen() {
+  const [projects, setProjects] = useState<Project[]>([]);
+
+  const loadProjects = useCallback(async () => {
+    const savedProjects = await projectRepository.getAll();
+    setProjects(savedProjects);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadProjects();
+    }, [loadProjects])
+  );
+
+  async function openProject(projectId: string) {
+    await activeProjectRepository.set(projectId);
+    await loadProjects();
+  }
+
+  async function deleteProject(projectId: string) {
+    await projectRepository.remove(projectId);
+    await activeProjectRepository.clear();
+    await loadProjects();
+  }
+
+  async function restoreSnapshot(projectId: string, snapshotIndex: number) {
+    await projectRepository.restore(projectId, snapshotIndex);
+    await activeProjectRepository.set(projectId);
+    await loadProjects();
+  }
+
+  return (
+    <FieldRateScreen
+      title="Project History"
+      subtitle="Open saved scopes, review project versions, and restore earlier estimates."
+    >
+      <FieldRateCard title="Saved Projects">
+        {projects.length === 0 ? (
+          <Text style={styles.emptyText}>No saved projects yet.</Text>
+        ) : (
+          projects.map((project) => (
+            <View key={project.id} style={styles.project}>
+              <Pressable onPress={() => openProject(project.id)}>
+                <Text style={styles.projectName}>{project.name}</Text>
+                <Text style={styles.metaText}>{project.scope.length} scope lines</Text>
+                <Text style={styles.metaText}>
+                  {project.snapshots?.length || 0} saved versions
+                </Text>
+              </Pressable>
+
+              <Pressable onPress={() => deleteProject(project.id)}>
+                <Text style={styles.deleteText}>Delete Project</Text>
+              </Pressable>
+
+              {project.snapshots?.length ? (
+                <View style={styles.snapshotList}>
+                  {project.snapshots.map((snapshot, index) => (
+                    <Pressable
+                      key={`${project.id}-${snapshot.timestamp}-${index}`}
+                      onPress={() => restoreSnapshot(project.id, index)}
+                    >
+                      <Text style={styles.restoreText}>
+                        Restore {new Date(snapshot.timestamp).toLocaleString()}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+            </View>
+          ))
+        )}
+      </FieldRateCard>
+    </FieldRateScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  emptyText: {
+    color: COLORS.muted,
+    lineHeight: 20,
+  },
+  project: {
+    borderWidth: 1,
+    borderColor: "rgba(0, 242, 255, 0.18)",
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    gap: 8,
+  },
+  projectName: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  metaText: {
+    color: COLORS.muted,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  snapshotList: {
+    marginTop: 6,
+    gap: 6,
+  },
+  deleteText: {
+    color: COLORS.danger,
+    fontSize: 13,
+    fontWeight: "800",
+    marginTop: 8,
+  },
+  restoreText: {
+    color: COLORS.primary,
+    fontSize: 13,
+    fontWeight: "700",
+  },
+});
+
+============================================================
+FILE: src/screens/TrendsScreen.tsx
+============================================================
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { COLORS } from "../theme/colors";
+
+export default function TrendsScreen() {
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.kicker}>FIELD RATE</Text>
+      <Text style={styles.title}>Trends</Text>
+      <Text style={styles.sub}>Rebuilt clean. Layout and behavior will match the original app.</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    padding: 18,
+    paddingTop: 28,
+  },
+  kicker: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  title: {
+    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  sub: {
+    color: COLORS.muted,
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+});
+
+============================================================
+FILE: src/screens/InsightsScreen.tsx
+============================================================
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { COLORS } from "../theme/colors";
+
+export default function InsightsScreen() {
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.kicker}>FIELD RATE</Text>
+      <Text style={styles.title}>Insights</Text>
+      <Text style={styles.sub}>Rebuilt clean. Layout and behavior will match the original app.</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    padding: 18,
+    paddingTop: 28,
+  },
+  kicker: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  title: {
+    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  sub: {
+    color: COLORS.muted,
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+});
+
+============================================================
+FILE: src/screens/HowItWorksScreen.tsx
+============================================================
+import React from "react";
+import { View, Text, StyleSheet } from "react-native";
+import { COLORS } from "../theme/colors";
+
+export default function HowItWorksScreen() {
+  return (
+    <View style={styles.screen}>
+      <Text style={styles.kicker}>FIELD RATE</Text>
+      <Text style={styles.title}>How It Works</Text>
+      <Text style={styles.sub}>Rebuilt clean. Layout and behavior will match the original app.</Text>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    padding: 18,
+    paddingTop: 28,
+  },
+  kicker: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "900",
+    letterSpacing: 2,
+    marginBottom: 10,
+  },
+  title: {
+    color: COLORS.text,
+    fontSize: 28,
+    fontWeight: "900",
+    textTransform: "uppercase",
+  },
+  sub: {
+    color: COLORS.muted,
+    marginTop: 10,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+});
