@@ -9,6 +9,7 @@ import ClientDiscoveryCard from "../components/walkthrough/ClientDiscoveryCard";
 import { walkthroughRepository } from "../data/repositories/walkthroughRepository";
 import { COLORS } from "../theme/colors";
 import type {
+  WalkthroughClientDiscovery,
   WalkthroughContentBlock,
   WalkthroughDraft,
   WalkthroughTag,
@@ -21,6 +22,32 @@ const TAGS: { tag: WalkthroughTag; label: string; meaning: string }[] = [
   { tag: "orange", label: "Orange", meaning: "Maybe / allowance / pending" },
   { tag: "red", label: "Red", meaning: "Issue / risk / critical" },
 ];
+
+const defaultClientDiscovery: WalkthroughClientDiscovery = {
+  clientConversationNotes: "",
+  conceptA_description: "",
+  conceptA_price: "",
+  conceptA_notes: "",
+  conceptB_description: "",
+  conceptB_price: "",
+  conceptB_notes: "",
+  conceptC_description: "",
+  conceptC_price: "",
+  conceptC_notes: "",
+  productMaterialNotes: "",
+  preferredOptions: "",
+  avoidConcernItems: "",
+  budgetConversationNotes: "",
+  basicRange: "",
+  midRange: "",
+  premiumRange: "",
+  pricingRisks: "",
+  timelineConversationNotes: "",
+  idealStartWindow: "",
+  requiredFinishDeadline: "",
+  possiblePhases: "",
+  accessDisruptionNotes: "",
+};
 
 function now() {
   return new Date().toISOString();
@@ -85,6 +112,7 @@ export default function WalkthroughScreen() {
   const [reviewOpen, setReviewOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [clientDiscoveryOpen, setClientDiscoveryOpen] = useState(false);
+  const [clientDiscovery, setClientDiscovery] = useState<WalkthroughClientDiscovery>(defaultClientDiscovery);
 
   useEffect(() => {
     async function loadSaved() {
@@ -96,6 +124,7 @@ export default function WalkthroughScreen() {
       setContentBlocks(saved.contentBlocks || []);
       setScopeDraft(saved.scopeDraft || "");
       setSnapshots(saved.snapshots || []);
+      setClientDiscovery(saved.clientDiscovery || defaultClientDiscovery);
     }
 
     loadSaved();
@@ -109,12 +138,13 @@ export default function WalkthroughScreen() {
       contentBlocks,
       scopeDraft,
       snapshots,
+      clientDiscovery,
       createdAt: now(),
       updatedAt: now(),
     };
 
     walkthroughRepository.save(draft);
-  }, [projectName, title, contentBlocks, scopeDraft, snapshots]);
+  }, [projectName, title, contentBlocks, scopeDraft, snapshots, clientDiscovery]);
 
   function saveSnapshot() {
     if (contentBlocks.length === 0 && !scopeDraft.trim()) return;
@@ -539,7 +569,7 @@ export default function WalkthroughScreen() {
             </Pressable>
           </View>
           <ScrollView style={styles.curtainScroll} contentContainerStyle={styles.curtainContent}>
-            <ClientDiscoveryCard />
+            <ClientDiscoveryCard value={clientDiscovery} onChange={setClientDiscovery} />
           </ScrollView>
         </View>
       )}
