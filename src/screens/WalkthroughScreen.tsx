@@ -169,6 +169,32 @@ export default function WalkthroughScreen() {
     setContentBlocks((prev) => prev.filter((block) => block.id !== id));
   }
 
+  function moveBlockUp(id: string) {
+    saveSnapshot();
+    setContentBlocks((prev) => {
+      const index = prev.findIndex((block) => block.id === id);
+      if (index <= 0) return prev;
+      const copy = [...prev];
+      const temp = copy[index - 1];
+      copy[index - 1] = copy[index];
+      copy[index] = temp;
+      return copy;
+    });
+  }
+
+  function moveBlockDown(id: string) {
+    saveSnapshot();
+    setContentBlocks((prev) => {
+      const index = prev.findIndex((block) => block.id === id);
+      if (index === -1 || index >= prev.length - 1) return prev;
+      const copy = [...prev];
+      const temp = copy[index + 1];
+      copy[index + 1] = copy[index];
+      copy[index] = temp;
+      return copy;
+    });
+  }
+
   function updateImageCaption(id: string, caption: string) {
     setContentBlocks((prev) =>
       prev.map((block) =>
@@ -300,7 +326,7 @@ export default function WalkthroughScreen() {
           <Text style={styles.emptyText}>No walkthrough content yet.</Text>
         )}
 
-        {contentBlocks.map((block) => {
+        {contentBlocks.map((block, index) => {
           const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
           const isEditing = editingBlockId === block.id;
 
@@ -349,14 +375,28 @@ export default function WalkthroughScreen() {
               )}
 
               <View style={styles.itemFooter}>
-                {isEditing && (
-                  <Pressable onPress={() => saveEditing(block.id)}>
-                    <Text style={styles.doneText}>Done</Text>
+                <View style={styles.reorderControls}>
+                  {index > 0 && (
+                    <Pressable onPress={() => moveBlockUp(block.id)}>
+                      <Text style={styles.controlText}>↑</Text>
+                    </Pressable>
+                  )}
+                  {index < contentBlocks.length - 1 && (
+                    <Pressable onPress={() => moveBlockDown(block.id)}>
+                      <Text style={styles.controlText}>↓</Text>
+                    </Pressable>
+                  )}
+                </View>
+                <View style={styles.actionControls}>
+                  {isEditing && (
+                    <Pressable onPress={() => saveEditing(block.id)}>
+                      <Text style={styles.doneText}>Done</Text>
+                    </Pressable>
+                  )}
+                  <Pressable onPress={() => removeBlock(block.id)}>
+                    <Text style={styles.removeText}>Remove</Text>
                   </Pressable>
-                )}
-                <Pressable onPress={() => removeBlock(block.id)}>
-                  <Text style={styles.removeText}>Remove</Text>
-                </Pressable>
+                </View>
               </View>
             </View>
           );
@@ -646,10 +686,23 @@ const styles = StyleSheet.create({
   },
   itemFooter: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  reorderControls: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  controlText: {
+    color: COLORS.dim,
+    fontSize: 16,
+    fontWeight: "900",
+  },
+  actionControls: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 16,
-    marginTop: 8,
   },
   doneText: {
     color: COLORS.primary,
