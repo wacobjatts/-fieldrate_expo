@@ -87,7 +87,7 @@ export default function MaterialTakeoffScreen() {
         </FieldRateCard>
 
         {/* ADD */}
-        <FieldRateCard>
+        <FieldRateCard title="Material Takeoff">
           <Pressable style={styles.addBtn} onPress={addItem}>
             <Text style={styles.addText}>+ Add Line Item</Text>
           </Pressable>
