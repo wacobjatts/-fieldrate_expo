@@ -1,442 +1,452 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import * as Clipboard from "expo-clipboard";
+// src/screens/ScopeOfWorkScreen.tsx
+
+import React, { useState } from "react";
+import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
 import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
-import { logRepository } from "../data/repositories/logRepository";
-import { calculateEstimate } from "../domain/estimateMath";
-import { summarizeLogsByTask, type TaskRateSummary } from "../domain/performanceMath";
+import { scopeRepository } from "../data/repositories/scopeRepository";
 import { COLORS } from "../theme/colors";
-import type { ScopeItem } from "../types/scope";
-import type { WorkLog } from "../types/log";
+import type { ScopeComponent, ScopeDraft, ScopeItem } from "../types/scope";
+
+function now() {
+  return new Date().toISOString();
+}
+
+function createScopeItem(): ScopeItem {
+  return {
+    id: Date.now().toString(),
+    title: "",
+    description: "",
+    components: [],
+    executionType: "selfPerform",
+    materialType: "fixed",
+    inclusions: [],
+    exclusions: [],
+    status: "draft",
+    createdAt: now(),
+    updatedAt: now(),
+  };
+}
 
 export default function ScopeOfWorkScreen() {
   const [projectName, setProjectName] = useState("Untitled Project");
-  const [clientName, setClientName] = useState("");
-  const [jobAddress, setJobAddress] = useState("");
-  const [scope, setScope] = useState<ScopeItem[]>([]);
-  const [summaries, setSummaries] = useState<TaskRateSummary[]>([]);
-  const [logs, setLogs] = useState<WorkLog[]>([]);
-  const [activePhaseId, setActivePhaseId] = useState("default");
-  const [activePhaseName, setActivePhaseName] = useState("General");
-  const [rate, setRate] = useState("85");
+  const [status, setStatus] = useState<ScopeDraft["status"]>("draft");
+  const [scopeItems, setScopeItems] = useState<ScopeItem[]>([createScopeItem()]);
+  const [globalInclusions, setGlobalInclusions] = useState("Labor\nStandard cleanup\nDebris removal as noted");
+  const [globalExclusions, setGlobalExclusions] = useState("Structural changes unless noted\nElectrical unless noted\nPermit fees unless noted");
+  const [globalNotes, setGlobalNotes] = useState("");
+  const [similarOpen, setSimilarOpen] = useState(false);
 
-  useEffect(() => {
-    logRepository.getAll().then((logs) => {
-      setLogs(logs);
-      setSummaries(summarizeLogsByTask(logs));
-    });
-  }, []);
-
-  function addLine() {
-    setScope((prev) => [
-      ...prev,
-      { id: Date.now().toString(), taskName: "", quantity: 0, phaseId: activePhaseId, phaseName: activePhaseName, lineType: "selfPerform" },
-    ]);
+  function addScopeLine() {
+    setScopeItems((prev) => [...prev, createScopeItem()]);
   }
 
-  function updateLine(id: string, patch: Partial<ScopeItem>) {
-    setScope((prev) => prev.map((line) => (line.id === id ? { ...line, ...patch } : line)));
+  function updateScopeLine(id: string, patch: Partial<ScopeItem>) {
+    setScopeItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, ...patch, updatedAt: now() } : item
+      )
+    );
   }
 
-  function removeLine(id: string) {
-    setScope((prev) => prev.filter((line) => line.id !== id));
+  function removeScopeLine(id: string) {
+    setScopeItems((prev) => prev.filter((item) => item.id !== id));
   }
 
-  const phases = useMemo(() => {
-    const map = new Map<string, string>();
-    map.set("default", "General");
-    scope.forEach((line) => map.set(line.phaseId || "default", line.phaseName || "General"));
-    map.set(activePhaseId, activePhaseName || "General");
-    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
-  }, [scope, activePhaseId, activePhaseName]);
+  function addComponent(scopeId: string) {
+    const component: ScopeComponent = {
+      id: Date.now().toString(),
+      description: "",
+    };
 
-  function calculateLine(line: ScopeItem) {
-    const summary = summaries.find((item) => item.taskName === line.taskName);
-
-    const estimate = calculateEstimate({
-      quantity: line.quantity,
-      mhPerUnit: summary?.averageMHPerUnit || 0,
-      ratePerHour: Number(rate) || 0,
-      difficultyFactor: 1,
-      contingencyPercent: 0,
-    });
-
-    const type = line.lineType || "selfPerform";
-
-    if (type === "subcontractor") {
-      const bid = line.subcontractorBid || 0;
-      const markup = line.subcontractorMarkup || 0;
-      const total = bid * (1 + markup);
-      return { line, estimate: { totalManHours: 0, laborSubtotal: bid, contingencyAmount: total - bid, bidTotal: total } };
-    }
-
-    if (type === "allowance") {
-      const value = line.quantity || 0;
-      return { line, estimate: { totalManHours: 0, laborSubtotal: value, contingencyAmount: 0, bidTotal: value } };
-    }
-
-    if (type === "credit") {
-      const value = -(line.quantity || 0);
-      return { line, estimate: { totalManHours: 0, laborSubtotal: value, contingencyAmount: 0, bidTotal: value } };
-    }
-
-    return { line, estimate };
+    setScopeItems((prev) =>
+      prev.map((item) =>
+        item.id === scopeId
+          ? { ...item, components: [...item.components, component], updatedAt: now() }
+          : item
+      )
+    );
   }
 
-  const lineResults = useMemo(() => {
-    return scope
-      .filter((line) => (line.phaseId || "default") === activePhaseId)
-      .map(calculateLine);
-  }, [scope, summaries, rate, activePhaseId]);
+  function updateComponent(scopeId: string, componentId: string, description: string) {
+    setScopeItems((prev) =>
+      prev.map((item) =>
+        item.id === scopeId
+          ? {
+              ...item,
+              components: item.components.map((component) =>
+                component.id === componentId
+                  ? { ...component, description }
+                  : component
+              ),
+              updatedAt: now(),
+            }
+          : item
+      )
+    );
+  }
 
-  const allLineResults = useMemo(() => {
-    return scope.map(calculateLine);
-  }, [scope, summaries, rate]);
-
-  const actualsByTask = useMemo(() => {
-    return logs.reduce<Record<string, { manHours: number; laborCost: number }>>((acc, log) => {
-      const key = log.taskName;
-      if (!acc[key]) acc[key] = { manHours: 0, laborCost: 0 };
-      acc[key].manHours += log.manHours || 0;
-      acc[key].laborCost += log.laborCost || 0;
-      return acc;
-    }, {});
-  }, [logs]);
-
-  const healthTotals = allLineResults.reduce(
-    (acc, item) => {
-      const actual = actualsByTask[item.line.taskName];
-      acc.estimatedHours += item.estimate.totalManHours || 0;
-      acc.estimatedCost += item.estimate.bidTotal || 0;
-      acc.actualHours += actual?.manHours || 0;
-      acc.actualCost += actual?.laborCost || 0;
-      return acc;
-    },
-    { estimatedHours: 0, actualHours: 0, estimatedCost: 0, actualCost: 0 }
-  );
-
-  const hourDrift = healthTotals.actualHours - healthTotals.estimatedHours;
-  const costDrift = healthTotals.actualCost - healthTotals.estimatedCost;
-  const costDriftPercent = healthTotals.estimatedCost > 0 ? costDrift / healthTotals.estimatedCost : 0;
-
-  const healthLabel = costDriftPercent <= 0 ? "On Track" : costDriftPercent <= 0.1 ? "Watch" : "Over Budget";
-  const healthColor = costDriftPercent <= 0 ? COLORS.success : costDriftPercent <= 0.1 ? COLORS.warning : COLORS.danger;
-
-  const projectTotals = allLineResults.reduce((acc, item) => {
-    const type = item.line.lineType || "selfPerform";
-    if (type === "subcontractor") acc.subs += item.estimate.bidTotal;
-    else if (type === "allowance") acc.allowances += item.estimate.bidTotal;
-    else if (type === "credit") acc.credits += item.estimate.bidTotal;
-    else acc.self += item.estimate.bidTotal;
-    acc.total += item.estimate.bidTotal;
-    return acc;
-  }, { self: 0, subs: 0, allowances: 0, credits: 0, total: 0 });
-
-  const totals = lineResults.reduce((acc, item) => {
-    const type = item.line.lineType || "selfPerform";
-    if (type === "subcontractor") acc.subs += item.estimate.bidTotal;
-    else if (type === "allowance") acc.allowances += item.estimate.bidTotal;
-    else if (type === "credit") acc.credits += item.estimate.bidTotal;
-    else acc.self += item.estimate.bidTotal;
-    acc.total += item.estimate.bidTotal;
-    return acc;
-  }, { self: 0, subs: 0, allowances: 0, credits: 0, total: 0 });
-
-  const projectedProfitLoss = projectTotals.total - healthTotals.actualCost;
-
-  function buildEstimateText(mode: "phase" | "project") {
-    const data = mode === "phase" ? lineResults : allLineResults;
-    const rows = data.map((item, index) => {
-      const line = item.line;
-      const est = item.estimate;
-      const type = line.lineType || "selfPerform";
-      return [
-        `${index + 1}. ${line.taskName || "Unassigned Task"}`,
-        `Type: ${type}`,
-        `Quantity: ${line.quantity}`,
-        `Total: $${est.bidTotal.toFixed(2)}`,
-      ].join("\n");
-    });
-    const totalAmount = data.reduce((sum, item) => sum + item.estimate.bidTotal, 0);
-    return [
+  async function saveDraft() {
+    const draft: ScopeDraft = {
+      id: "current-scope-draft",
       projectName,
-      clientName ? `Client: ${clientName}` : "",
-      jobAddress ? `Job Address: ${jobAddress}` : "",
-      "",
-      mode === "phase" ? `Phase: ${activePhaseName}` : "Full Project",
-      "",
-      ...rows,
-      "",
-      "--------------------",
-      `Total: $${totalAmount.toFixed(2)}`,
-    ].filter(Boolean).join("\n");
+      items: scopeItems,
+      globalInclusions: globalInclusions.split("\n").filter(Boolean),
+      globalExclusions: globalExclusions.split("\n").filter(Boolean),
+      globalNotes,
+      status,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+
+    await scopeRepository.save(draft);
+    Alert.alert("Scope Saved", "Your scope draft has been saved.");
   }
 
   return (
-    <FieldRateScreen title="Scope of Work" subtitle="Build and track project scope">
-      {/* Project Settings */}
-      <FieldRateCard title="Project Settings">
-        <View style={styles.copyButtons}>
-          <Pressable style={styles.copyButton} onPress={async () => Clipboard.setStringAsync(buildEstimateText("phase"))}>
-            <Text style={styles.copyButtonText}>Copy Phase</Text>
-          </Pressable>
-          <Pressable style={styles.copyButton} onPress={async () => Clipboard.setStringAsync(buildEstimateText("project"))}>
-            <Text style={styles.copyButtonText}>Copy Project</Text>
-          </Pressable>
+    <FieldRateScreen title="Scope of Work" subtitle="Define what is included and excluded">
+      <FieldRateCard title="Scope Control">
+        <View style={styles.statusRow}>
+          <View>
+            <Text style={styles.label}>Project</Text>
+            <TextInput
+              value={projectName}
+              onChangeText={setProjectName}
+              style={styles.titleInput}
+            />
+          </View>
+
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusText}>{status.toUpperCase()}</Text>
+          </View>
         </View>
 
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Project Name</Text>
-          <TextInput value={projectName} onChangeText={setProjectName} style={styles.input} />
-        </View>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Client Name</Text>
-          <TextInput value={clientName} onChangeText={setClientName} placeholder="Optional" placeholderTextColor={COLORS.dim} style={styles.input} />
-        </View>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Job Address</Text>
-          <TextInput value={jobAddress} onChangeText={setJobAddress} placeholder="Optional" placeholderTextColor={COLORS.dim} style={styles.input} />
-        </View>
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Rate / Hr ($)</Text>
-          <TextInput value={rate} onChangeText={setRate} keyboardType="decimal-pad" style={styles.input} />
-        </View>
+        <Text style={styles.helperText}>
+          Scope defines the work. Labor, materials, pricing, and performance happen later.
+        </Text>
       </FieldRateCard>
 
-      {/* Phase Selection */}
-      <FieldRateCard title="Phase">
-        <View style={styles.inputGroup}>
-          <Text style={styles.inputLabel}>Phase Name</Text>
-          <TextInput value={activePhaseName} onChangeText={setActivePhaseName} style={styles.input} />
-        </View>
-        <View style={styles.phaseList}>
-          {phases.map((phase) => (
-            <Pressable 
-              key={phase.id} 
-              style={[styles.phaseChip, activePhaseId === phase.id && styles.phaseChipActive]}
-              onPress={() => { setActivePhaseId(phase.id); setActivePhaseName(phase.name); }}
-            >
-              <Text style={[styles.phaseChipText, activePhaseId === phase.id && styles.phaseChipTextActive]}>
-                {phase.name}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        <Pressable style={styles.addPhaseButton} onPress={() => { const id = Date.now().toString(); setActivePhaseId(id); setActivePhaseName("New Phase"); }}>
-          <Text style={styles.addPhaseText}>+ New Phase</Text>
-        </Pressable>
-      </FieldRateCard>
-
-      {/* Scope Lines */}
       <FieldRateCard title="Scope Lines">
-        {lineResults.map((item) => (
-          <View key={item.line.id} style={styles.scopeLine}>
-            {/* Line Type Selection */}
-            <View style={styles.lineTypeRow}>
-              {(["selfPerform", "subcontractor", "allowance", "credit"] as const).map((type) => (
-                <Pressable 
-                  key={type} 
-                  style={[styles.lineTypeChip, item.line.lineType === type && styles.lineTypeChipActive]}
-                  onPress={() => updateLine(item.line.id, { lineType: type })}
-                >
-                  <Text style={[styles.lineTypeText, item.line.lineType === type && styles.lineTypeTextActive]}>
-                    {type === "selfPerform" ? "Self" : type === "subcontractor" ? "Sub" : type === "allowance" ? "Allow" : "Credit"}
-                  </Text>
-                </Pressable>
-              ))}
+        {scopeItems.map((item, index) => (
+          <View key={item.id} style={styles.scopeCard}>
+            <View style={styles.scopeHeader}>
+              <Text style={styles.scopeNumber}>{index + 1}</Text>
+              <TextInput
+                value={item.title}
+                onChangeText={(text) => updateScopeLine(item.id, { title: text })}
+                placeholder="Scope title"
+                placeholderTextColor={COLORS.dim}
+                style={styles.scopeTitle}
+              />
             </View>
 
             <TextInput
-              value={item.line.taskName}
-              onChangeText={(text) => updateLine(item.line.id, { taskName: text })}
-              placeholder="Task name"
+              value={item.description}
+              onChangeText={(text) => updateScopeLine(item.id, { description: text })}
+              placeholder="Describe what is included in this scope line"
               placeholderTextColor={COLORS.dim}
-              style={styles.input}
-            />
-            <TextInput
-              value={String(item.line.quantity || "")}
-              onChangeText={(text) => updateLine(item.line.id, { quantity: Number(text) || 0 })}
-              placeholder="Quantity"
-              placeholderTextColor={COLORS.dim}
-              keyboardType="decimal-pad"
-              style={styles.input}
+              style={styles.textArea}
+              multiline
             />
 
-            {item.line.lineType === "subcontractor" && (
+            <Text style={styles.sectionLabel}>Execution</Text>
+            <View style={styles.chipRow}>
+              <Pressable
+                style={[
+                  styles.chip,
+                  item.executionType === "selfPerform" && styles.chipActive,
+                ]}
+                onPress={() => updateScopeLine(item.id, { executionType: "selfPerform" })}
+              >
+                <Text style={styles.chipText}>Self Perform</Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.chip,
+                  item.executionType === "subcontractor" && styles.chipActive,
+                ]}
+                onPress={() =>
+                  updateScopeLine(item.id, { executionType: "subcontractor" })
+                }
+              >
+                <Text style={styles.chipText}>Subcontractor</Text>
+              </Pressable>
+            </View>
+
+            {item.executionType === "subcontractor" && (
+              <TextInput
+                value={item.subcontractorName || ""}
+                onChangeText={(text) =>
+                  updateScopeLine(item.id, { subcontractorName: text })
+                }
+                placeholder="Subcontractor name"
+                placeholderTextColor={COLORS.dim}
+                style={styles.input}
+              />
+            )}
+
+            <Text style={styles.sectionLabel}>Material</Text>
+            <View style={styles.chipRow}>
+              <Pressable
+                style={[
+                  styles.chip,
+                  item.materialType === "fixed" && styles.chipActive,
+                ]}
+                onPress={() => updateScopeLine(item.id, { materialType: "fixed" })}
+              >
+                <Text style={styles.chipText}>Fixed</Text>
+              </Pressable>
+
+              <Pressable
+                style={[
+                  styles.chip,
+                  item.materialType === "allowance" && styles.allowanceActive,
+                ]}
+                onPress={() => updateScopeLine(item.id, { materialType: "allowance" })}
+              >
+                <Text style={styles.chipText}>Allowance</Text>
+              </Pressable>
+            </View>
+
+            {item.materialType === "allowance" && (
               <>
                 <TextInput
-                  value={item.line.subcontractorName || ""}
-                  onChangeText={(text) => updateLine(item.line.id, { subcontractorName: text })}
-                  placeholder="Subcontractor Name"
+                  value={item.allowanceAmount ? String(item.allowanceAmount) : ""}
+                  onChangeText={(text) =>
+                    updateScopeLine(item.id, {
+                      allowanceAmount: Number(text) || 0,
+                    })
+                  }
+                  placeholder="Allowance amount"
+                  placeholderTextColor={COLORS.dim}
+                  keyboardType="decimal-pad"
+                  style={styles.input}
+                />
+                <TextInput
+                  value={item.allowanceNote || ""}
+                  onChangeText={(text) =>
+                    updateScopeLine(item.id, { allowanceNote: text })
+                  }
+                  placeholder="Allowance note"
                   placeholderTextColor={COLORS.dim}
                   style={styles.input}
                 />
-                <View style={styles.row}>
-                  <View style={styles.flex}>
-                    <TextInput
-                      value={item.line.subcontractorBid ? String(item.line.subcontractorBid) : ""}
-                      onChangeText={(text) => updateLine(item.line.id, { subcontractorBid: Number(text) || 0 })}
-                      placeholder="Bid ($)"
-                      placeholderTextColor={COLORS.dim}
-                      keyboardType="decimal-pad"
-                      style={styles.input}
-                    />
-                  </View>
-                  <View style={styles.flex}>
-                    <TextInput
-                      value={item.line.subcontractorMarkup ? String(item.line.subcontractorMarkup) : ""}
-                      onChangeText={(text) => updateLine(item.line.id, { subcontractorMarkup: Number(text) || 0 })}
-                      placeholder="Markup (0.15)"
-                      placeholderTextColor={COLORS.dim}
-                      keyboardType="decimal-pad"
-                      style={styles.input}
-                    />
-                  </View>
-                </View>
               </>
             )}
 
-            <View style={styles.lineFooter}>
-              <Text style={styles.lineTotal}>${item.estimate.bidTotal.toFixed(2)}</Text>
-              <Pressable onPress={() => removeLine(item.line.id)}>
-                <Text style={styles.removeText}>Remove</Text>
-              </Pressable>
-            </View>
+            <Text style={styles.sectionLabel}>Components</Text>
+            {item.components.map((component) => (
+              <TextInput
+                key={component.id}
+                value={component.description}
+                onChangeText={(text) => updateComponent(item.id, component.id, text)}
+                placeholder="Component / included step"
+                placeholderTextColor={COLORS.dim}
+                style={styles.input}
+              />
+            ))}
+
+            <Pressable style={styles.subtleButton} onPress={() => addComponent(item.id)}>
+              <Text style={styles.subtleButtonText}>+ Add Component</Text>
+            </Pressable>
+
+            <TextInput
+              value={item.notes || ""}
+              onChangeText={(text) => updateScopeLine(item.id, { notes: text })}
+              placeholder="Notes / assumptions"
+              placeholderTextColor={COLORS.dim}
+              style={styles.textArea}
+              multiline
+            />
+
+            <Pressable onPress={() => removeScopeLine(item.id)}>
+              <Text style={styles.removeText}>Remove Scope Line</Text>
+            </Pressable>
           </View>
         ))}
 
-        <Pressable style={styles.addLineButton} onPress={addLine}>
-          <Text style={styles.addLineText}>+ Add Line</Text>
+        <Pressable style={styles.addLineButton} onPress={addScopeLine}>
+          <Text style={styles.addLineText}>+ Add Scope Line</Text>
         </Pressable>
       </FieldRateCard>
 
-      {/* Phase Totals */}
-      <FieldRateCard title="Phase Totals">
-        <View style={styles.totalsGrid}>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Self Perform</Text>
-            <Text style={styles.totalValue}>${totals.self.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Subcontractors</Text>
-            <Text style={styles.totalValue}>${totals.subs.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Allowances</Text>
-            <Text style={styles.totalValue}>${totals.allowances.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Credits</Text>
-            <Text style={[styles.totalValue, totals.credits < 0 && styles.creditValue]}>${totals.credits.toFixed(2)}</Text>
-          </View>
-        </View>
-        <View style={styles.grandTotal}>
-          <Text style={styles.grandTotalLabel}>Phase Total</Text>
-          <Text style={styles.grandTotalValue}>${totals.total.toFixed(2)}</Text>
-        </View>
-      </FieldRateCard>
-
-      {/* Project Health */}
-      <FieldRateCard title="Project Health">
-        <View style={[styles.healthBadge, { borderColor: healthColor }]}>
-          <Text style={[styles.healthLabel, { color: healthColor }]}>{healthLabel}</Text>
-          <Text style={styles.healthPercent}>{(costDriftPercent * 100).toFixed(1)}% drift</Text>
-        </View>
-
-        <View style={styles.healthGrid}>
-          <View style={styles.healthItem}>
-            <Text style={styles.healthItemLabel}>Est. Hours</Text>
-            <Text style={styles.healthItemValue}>{healthTotals.estimatedHours.toFixed(1)}</Text>
-          </View>
-          <View style={styles.healthItem}>
-            <Text style={styles.healthItemLabel}>Actual Hours</Text>
-            <Text style={styles.healthItemValue}>{healthTotals.actualHours.toFixed(1)}</Text>
-          </View>
-          <View style={styles.healthItem}>
-            <Text style={styles.healthItemLabel}>Hour Drift</Text>
-            <Text style={[styles.healthItemValue, hourDrift > 0 && styles.driftWarning]}>{hourDrift.toFixed(1)}</Text>
-          </View>
-          <View style={styles.healthItem}>
-            <Text style={styles.healthItemLabel}>Est. Cost</Text>
-            <Text style={styles.healthItemValue}>${healthTotals.estimatedCost.toFixed(0)}</Text>
-          </View>
-          <View style={styles.healthItem}>
-            <Text style={styles.healthItemLabel}>Actual Cost</Text>
-            <Text style={styles.healthItemValue}>${healthTotals.actualCost.toFixed(0)}</Text>
-          </View>
-          <View style={styles.healthItem}>
-            <Text style={styles.healthItemLabel}>Cost Drift</Text>
-            <Text style={[styles.healthItemValue, costDrift > 0 && styles.driftWarning]}>${costDrift.toFixed(0)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.profitLoss}>
-          <Text style={styles.profitLossLabel}>Projected Profit/Loss</Text>
-          <Text style={[styles.profitLossValue, projectedProfitLoss < 0 && styles.lossValue]}>
-            ${projectedProfitLoss.toFixed(2)}
+      <FieldRateCard title="Similar Past Scopes">
+        <Pressable onPress={() => setSimilarOpen((value) => !value)}>
+          <Text style={styles.libraryToggle}>
+            {similarOpen ? "Hide" : "Show"} scope library placeholder
           </Text>
-        </View>
+        </Pressable>
+
+        {similarOpen && (
+          <View style={styles.libraryBox}>
+            <Text style={styles.libraryTitle}>Window Replacement</Text>
+            <Text style={styles.libraryText}>
+              Used before: remove window, prep opening, install unit, seal, trim.
+            </Text>
+            <Text style={styles.libraryTitle}>Interior Remodel</Text>
+            <Text style={styles.libraryText}>
+              Used before: demo, framing, drywall, paint, flooring.
+            </Text>
+          </View>
+        )}
       </FieldRateCard>
 
-      {/* Project Totals */}
-      <FieldRateCard title="Project Totals" variant="highlighted">
-        <View style={styles.totalsGrid}>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Self Perform</Text>
-            <Text style={styles.totalValue}>${projectTotals.self.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Subcontractors</Text>
-            <Text style={styles.totalValue}>${projectTotals.subs.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Allowances</Text>
-            <Text style={styles.totalValue}>${projectTotals.allowances.toFixed(2)}</Text>
-          </View>
-          <View style={styles.totalItem}>
-            <Text style={styles.totalLabel}>Credits</Text>
-            <Text style={[styles.totalValue, projectTotals.credits < 0 && styles.creditValue]}>${projectTotals.credits.toFixed(2)}</Text>
-          </View>
-        </View>
-        <View style={styles.grandTotal}>
-          <Text style={styles.grandTotalLabel}>Project Total</Text>
-          <Text style={[styles.grandTotalValue, styles.primaryValue]}>${projectTotals.total.toFixed(2)}</Text>
-        </View>
+      <FieldRateCard title="Global Inclusions">
+        <TextInput
+          value={globalInclusions}
+          onChangeText={setGlobalInclusions}
+          multiline
+          style={styles.textArea}
+        />
       </FieldRateCard>
+
+      <FieldRateCard title="Global Exclusions">
+        <TextInput
+          value={globalExclusions}
+          onChangeText={setGlobalExclusions}
+          multiline
+          style={styles.textArea}
+        />
+      </FieldRateCard>
+
+      <FieldRateCard title="Global Notes">
+        <TextInput
+          value={globalNotes}
+          onChangeText={setGlobalNotes}
+          placeholder="General notes, assumptions, or clarifications"
+          placeholderTextColor={COLORS.dim}
+          multiline
+          style={styles.textArea}
+        />
+      </FieldRateCard>
+
+      <View style={styles.actionRow}>
+        <Pressable style={styles.secondaryButton} onPress={saveDraft}>
+          <Text style={styles.secondaryButtonText}>Save Draft</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.primaryButton}
+          onPress={() => {
+            setStatus("sent-to-estimate");
+            saveDraft();
+          }}
+        >
+          <Text style={styles.primaryButtonText}>Continue</Text>
+        </Pressable>
+      </View>
     </FieldRateScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  copyButtons: {
+  statusRow: {
     flexDirection: "row",
-    gap: 8,
-    marginBottom: 12,
-  },
-  copyButton: {
-    flex: 1,
-    backgroundColor: COLORS.primaryDim,
-    borderRadius: 8,
-    paddingVertical: 10,
+    justifyContent: "space-between",
+    gap: 12,
     alignItems: "center",
+  },
+  label: {
+    color: COLORS.dim,
+    fontSize: 10,
+    fontWeight: "700",
+    marginBottom: 4,
+  },
+  titleInput: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: "900",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingVertical: 6,
+    minWidth: 180,
+  },
+  statusBadge: {
+    borderWidth: 1,
+    borderColor: COLORS.warning,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statusText: {
+    color: COLORS.warning,
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  helperText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 12,
+  },
+  scopeCard: {
     borderWidth: 1,
     borderColor: COLORS.border,
+    backgroundColor: COLORS.background,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 14,
+    gap: 10,
   },
-  copyButtonText: {
+  scopeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  scopeNumber: {
     color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: "700",
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 20,
+    width: 30,
+    height: 30,
+    textAlign: "center",
+    lineHeight: 28,
+    fontWeight: "900",
   },
-  inputGroup: {
-    gap: 4,
-    marginBottom: 10,
+  scopeTitle: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: "900",
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    paddingVertical: 6,
   },
-  inputLabel: {
+  sectionLabel: {
+    color: COLORS.dim,
+    fontSize: 10,
+    fontWeight: "900",
+    textTransform: "uppercase",
+    marginTop: 4,
+  },
+  chipRow: {
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  chip: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  chipActive: {
+    borderColor: COLORS.primary,
+    backgroundColor: COLORS.primaryDim,
+  },
+  allowanceActive: {
+    borderColor: COLORS.warning,
+    backgroundColor: "rgba(255, 180, 60, 0.15)",
+  },
+  chipText: {
     color: COLORS.text,
     fontSize: 11,
-    fontWeight: "700",
+    fontWeight: "800",
   },
   input: {
     borderWidth: 1,
@@ -447,222 +457,91 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
     fontSize: 14,
   },
-  phaseList: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 10,
-  },
-  phaseChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
+  textArea: {
+    minHeight: 82,
     borderWidth: 1,
     borderColor: COLORS.border,
-    backgroundColor: COLORS.background,
-  },
-  phaseChipActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryDim,
-  },
-  phaseChipText: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontWeight: "600",
-  },
-  phaseChipTextActive: {
-    color: COLORS.primary,
-  },
-  addPhaseButton: {
-    alignItems: "center",
-    paddingVertical: 8,
-  },
-  addPhaseText: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  scopeLine: {
-    backgroundColor: COLORS.background,
     borderRadius: 10,
     padding: 12,
+    color: COLORS.text,
+    backgroundColor: COLORS.background,
+    fontSize: 14,
+    textAlignVertical: "top",
+  },
+  subtleButton: {
     borderWidth: 1,
     borderColor: COLORS.border,
-    marginBottom: 10,
-    gap: 8,
-  },
-  lineTypeRow: {
-    flexDirection: "row",
-    gap: 6,
-    marginBottom: 4,
-  },
-  lineTypeChip: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
-  },
-  lineTypeChipActive: {
-    borderColor: COLORS.primary,
-    backgroundColor: COLORS.primaryDim,
-  },
-  lineTypeText: {
-    color: COLORS.muted,
-    fontSize: 10,
-    fontWeight: "700",
-  },
-  lineTypeTextActive: {
-    color: COLORS.primary,
-  },
-  row: {
-    flexDirection: "row",
-    gap: 8,
-  },
-  flex: {
-    flex: 1,
-  },
-  lineFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    borderRadius: 10,
+    paddingVertical: 10,
     alignItems: "center",
-    marginTop: 4,
   },
-  lineTotal: {
+  subtleButtonText: {
     color: COLORS.primary,
-    fontSize: 16,
     fontWeight: "800",
   },
   removeText: {
     color: COLORS.danger,
-    fontSize: 11,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "right",
   },
   addLineButton: {
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
+    borderColor: COLORS.primary,
+    borderRadius: 12,
     borderStyle: "dashed",
   },
   addLineText: {
     color: COLORS.primary,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  totalsGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12,
-  },
-  totalItem: {
-    width: "47%",
-    backgroundColor: COLORS.background,
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  totalLabel: {
-    color: COLORS.dim,
-    fontSize: 10,
-  },
-  totalValue: {
-    color: COLORS.text,
     fontSize: 14,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  creditValue: {
-    color: COLORS.success,
-  },
-  grandTotal: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  grandTotalLabel: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "700",
-  },
-  grandTotalValue: {
-    color: COLORS.text,
-    fontSize: 20,
     fontWeight: "900",
   },
-  primaryValue: {
+  libraryToggle: {
     color: COLORS.primary,
-  },
-  healthBadge: {
-    alignItems: "center",
-    paddingVertical: 12,
-    borderRadius: 10,
-    borderWidth: 1,
-    marginBottom: 12,
-  },
-  healthLabel: {
-    fontSize: 14,
     fontWeight: "800",
   },
-  healthPercent: {
-    color: COLORS.muted,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  healthGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
+  libraryBox: {
+    marginTop: 12,
     gap: 8,
-    marginBottom: 12,
   },
-  healthItem: {
-    width: "31%",
-    backgroundColor: COLORS.background,
-    borderRadius: 8,
-    padding: 10,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  healthItemLabel: {
-    color: COLORS.dim,
-    fontSize: 9,
-  },
-  healthItemValue: {
+  libraryTitle: {
     color: COLORS.text,
-    fontSize: 14,
-    fontWeight: "700",
-    marginTop: 2,
-  },
-  driftWarning: {
-    color: COLORS.warning,
-  },
-  profitLoss: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  profitLossLabel: {
-    color: COLORS.text,
-    fontSize: 13,
-    fontWeight: "700",
-  },
-  profitLossValue: {
-    color: COLORS.success,
-    fontSize: 18,
     fontWeight: "900",
   },
-  lossValue: {
-    color: COLORS.danger,
+  libraryText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginHorizontal: 16,
+    marginBottom: 24,
+  },
+  secondaryButton: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: "center",
+  },
+  secondaryButtonText: {
+    color: COLORS.text,
+    fontWeight: "900",
+  },
+  primaryButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    paddingVertical: 15,
+    alignItems: "center",
+  },
+  primaryButtonText: {
+    color: COLORS.background,
+    fontWeight: "900",
   },
 });
