@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
 import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
+import ClientDiscoveryCard from "../components/walkthrough/ClientDiscoveryCard";
 import { walkthroughRepository } from "../data/repositories/walkthroughRepository";
 import { COLORS } from "../theme/colors";
 import type {
@@ -83,6 +84,7 @@ export default function WalkthroughScreen() {
   const [snapshots, setSnapshots] = useState<WalkthroughDraft["snapshots"]>([]);
   const [reviewOpen, setReviewOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [clientDiscoveryOpen, setClientDiscoveryOpen] = useState(false);
 
   useEffect(() => {
     async function loadSaved() {
@@ -246,277 +248,302 @@ export default function WalkthroughScreen() {
   }
 
   return (
-    <FieldRateScreen title="Walkthrough" subtitle="Capture field reality first">
-      <FieldRateCard title="Walkthrough Control">
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Project Name</Text>
-          <TextInput
-            value={projectName}
-            onChangeText={setProjectName}
-            style={styles.input}
-          />
-        </View>
-
-        <View style={styles.inputGroup}>
-          <Text style={styles.label}>Walkthrough Title</Text>
-          <TextInput value={title} onChangeText={setTitle} style={styles.input} />
-        </View>
-      </FieldRateCard>
-
-      <FieldRateCard title="Rough Notes">
-        <Text style={styles.helper}>
-          Capture messy jobsite notes. Photos are inline blocks. Colors are field triage only.
-        </Text>
-
-        <View style={styles.toolbar}>
-          {TAGS.map((item) => (
-            <Pressable
-              key={item.tag}
-              style={[
-                styles.tagButton,
-                activeTag === item.tag && styles.tagButtonActive,
-                item.tag === "blue" && styles.blueBorder,
-                item.tag === "cyan" && styles.cyanBorder,
-                item.tag === "orange" && styles.orangeBorder,
-                item.tag === "red" && styles.redBorder,
-              ]}
-              onPress={() => setActiveTag(item.tag)}
-            >
-              <Text style={styles.tagText}>{item.label}</Text>
-            </Pressable>
-          ))}
-
-          <View style={styles.formatGroup}>
-            <Pressable
-              style={[styles.formatButton, isBold && styles.formatButtonActive]}
-              onPress={() => setIsBold(!isBold)}
-            >
-              <Text style={[styles.formatText, { fontWeight: "bold" }]}>B</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.formatButton, isUnderline && styles.formatButtonActive]}
-              onPress={() => setIsUnderline(!isUnderline)}
-            >
-              <Text style={[styles.formatText, { textDecorationLine: "underline" }]}>U</Text>
-            </Pressable>
-          </View>
-
-          <Pressable style={styles.cameraButton} onPress={addImagePlaceholder}>
-            <Text style={styles.cameraText}>📷</Text>
+    <View style={styles.container}>
+      <FieldRateScreen title="Walkthrough" subtitle="Capture field reality first">
+        <View style={styles.topToggleContainer}>
+          <Pressable
+            style={styles.topToggleButton}
+            onPress={() => setClientDiscoveryOpen(true)}
+          >
+            <Text style={styles.topToggleText}>Client Discovery</Text>
           </Pressable>
         </View>
 
-        <TextInput
-          style={styles.roughInput}
-          multiline
-          placeholder="Type rough walkthrough notes..."
-          placeholderTextColor={COLORS.dim}
-          value={inputText}
-          onChangeText={setInputText}
-        />
+        <FieldRateCard title="Walkthrough Control">
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Project Name</Text>
+            <TextInput
+              value={projectName}
+              onChangeText={setProjectName}
+              style={styles.input}
+            />
+          </View>
 
-        <Pressable style={styles.primaryButton} onPress={addTextBlock}>
-          <Text style={styles.primaryButtonText}>Add Text Block</Text>
-        </Pressable>
-      </FieldRateCard>
+          <View style={styles.inputGroup}>
+            <Text style={styles.label}>Walkthrough Title</Text>
+            <TextInput value={title} onChangeText={setTitle} style={styles.input} />
+          </View>
+        </FieldRateCard>
+
+        <FieldRateCard title="Rough Notes">
+          <Text style={styles.helper}>
+            Capture messy jobsite notes. Photos are inline blocks. Colors are field triage only.
+          </Text>
+
+          <View style={styles.toolbar}>
+            {TAGS.map((item) => (
+              <Pressable
+                key={item.tag}
+                style={[
+                  styles.tagButton,
+                  activeTag === item.tag && styles.tagButtonActive,
+                  item.tag === "blue" && styles.blueBorder,
+                  item.tag === "cyan" && styles.cyanBorder,
+                  item.tag === "orange" && styles.orangeBorder,
+                  item.tag === "red" && styles.redBorder,
+                ]}
+                onPress={() => setActiveTag(item.tag)}
+              >
+                <Text style={styles.tagText}>{item.label}</Text>
+              </Pressable>
+            ))}
+
+            <View style={styles.formatGroup}>
+              <Pressable
+                style={[styles.formatButton, isBold && styles.formatButtonActive]}
+                onPress={() => setIsBold(!isBold)}
+              >
+                <Text style={[styles.formatText, { fontWeight: "bold" }]}>B</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.formatButton, isUnderline && styles.formatButtonActive]}
+                onPress={() => setIsUnderline(!isUnderline)}
+              >
+                <Text style={[styles.formatText, { textDecorationLine: "underline" }]}>U</Text>
+              </Pressable>
+            </View>
+
+            <Pressable style={styles.cameraButton} onPress={addImagePlaceholder}>
+              <Text style={styles.cameraText}>📷</Text>
+            </Pressable>
+          </View>
+
+          <TextInput
+            style={styles.roughInput}
+            multiline
+            placeholder="Type rough walkthrough notes..."
+            placeholderTextColor={COLORS.dim}
+            value={inputText}
+            onChangeText={setInputText}
+          />
+
+          <Pressable style={styles.primaryButton} onPress={addTextBlock}>
+            <Text style={styles.primaryButtonText}>Add Text Block</Text>
+          </Pressable>
+        </FieldRateCard>
 
 
-      <FieldRateCard title="Inline Notes">
-        {contentBlocks.length === 0 && (
-          <Text style={styles.emptyText}>No walkthrough content yet.</Text>
-        )}
+        <FieldRateCard title="Inline Notes">
+          {contentBlocks.length === 0 && (
+            <Text style={styles.emptyText}>No walkthrough content yet.</Text>
+          )}
 
-        {contentBlocks.map((block, index) => {
-          const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
-          const isEditing = editingBlockId === block.id;
+          {contentBlocks.map((block, index) => {
+            const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
+            const isEditing = editingBlockId === block.id;
 
-          return (
-            <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
-              {block.type === "text" ? (
-                isEditing ? (
-                  <TextInput
-                    style={[
-                      styles.inlineEditInput,
-                      { color: getTagTextColor(block.tag || "none") },
-                      formatProps.isBold && { fontWeight: "bold" },
-                      formatProps.isUnderline && { textDecorationLine: "underline" }
-                    ]}
-                    value={editingText}
-                    onChangeText={setEditingText}
-                    multiline
-                    autoFocus
-                  />
+            return (
+              <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
+                {block.type === "text" ? (
+                  isEditing ? (
+                    <TextInput
+                      style={[
+                        styles.inlineEditInput,
+                        { color: getTagTextColor(block.tag || "none") },
+                        formatProps.isBold && { fontWeight: "bold" },
+                        formatProps.isUnderline && { textDecorationLine: "underline" }
+                      ]}
+                      value={editingText}
+                      onChangeText={setEditingText}
+                      multiline
+                      autoFocus
+                    />
+                  ) : (
+                    <Pressable onPress={() => startEditing(block.id, block.text)}>
+                      <Text style={[
+                        styles.noteText,
+                        { color: getTagTextColor(block.tag || "none") },
+                        formatProps.isBold && { fontWeight: "bold" },
+                        formatProps.isUnderline && { textDecorationLine: "underline" }
+                      ]}>
+                        {block.text}
+                      </Text>
+                    </Pressable>
+                  )
                 ) : (
-                  <Pressable onPress={() => startEditing(block.id, block.text)}>
-                    <Text style={[
-                      styles.noteText,
-                      { color: getTagTextColor(block.tag || "none") },
-                      formatProps.isBold && { fontWeight: "bold" },
-                      formatProps.isUnderline && { textDecorationLine: "underline" }
-                    ]}>
-                      {block.text}
-                    </Text>
-                  </Pressable>
-                )
-              ) : (
-                <View>
-                  <View style={styles.imagePlaceholder}>
-                    <Text style={styles.imageIcon}>📷</Text>
-                    <Text style={styles.imageText}>Photo block placeholder</Text>
+                  <View>
+                    <View style={styles.imagePlaceholder}>
+                      <Text style={styles.imageIcon}>📷</Text>
+                      <Text style={styles.imageText}>Photo block placeholder</Text>
+                    </View>
+                    <TextInput
+                      value={block.caption || ""}
+                      onChangeText={(text) => updateImageCaption(block.id, text)}
+                      placeholder="Photo caption..."
+                      placeholderTextColor={COLORS.dim}
+                      style={styles.captionInput}
+                    />
                   </View>
-                  <TextInput
-                    value={block.caption || ""}
-                    onChangeText={(text) => updateImageCaption(block.id, text)}
-                    placeholder="Photo caption..."
-                    placeholderTextColor={COLORS.dim}
-                    style={styles.captionInput}
-                  />
-                </View>
-              )}
+                )}
 
-              <View style={styles.itemFooter}>
-                <View style={styles.reorderControls}>
-                  {index > 0 && (
-                    <Pressable onPress={() => moveBlockUp(block.id)}>
-                      <Text style={styles.controlText}>↑</Text>
+                <View style={styles.itemFooter}>
+                  <View style={styles.reorderControls}>
+                    {index > 0 && (
+                      <Pressable onPress={() => moveBlockUp(block.id)}>
+                        <Text style={styles.controlText}>↑</Text>
+                      </Pressable>
+                    )}
+                    {index < contentBlocks.length - 1 && (
+                      <Pressable onPress={() => moveBlockDown(block.id)}>
+                        <Text style={styles.controlText}>↓</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                  <View style={styles.actionControls}>
+                    {isEditing && (
+                      <Pressable onPress={() => saveEditing(block.id)}>
+                        <Text style={styles.doneText}>Done</Text>
+                      </Pressable>
+                    )}
+                    <Pressable onPress={() => removeBlock(block.id)}>
+                      <Text style={styles.removeText}>Remove</Text>
                     </Pressable>
-                  )}
-                  {index < contentBlocks.length - 1 && (
-                    <Pressable onPress={() => moveBlockDown(block.id)}>
-                      <Text style={styles.controlText}>↓</Text>
-                    </Pressable>
-                  )}
-                </View>
-                <View style={styles.actionControls}>
-                  {isEditing && (
-                    <Pressable onPress={() => saveEditing(block.id)}>
-                      <Text style={styles.doneText}>Done</Text>
-                    </Pressable>
-                  )}
-                  <Pressable onPress={() => removeBlock(block.id)}>
-                    <Text style={styles.removeText}>Remove</Text>
-                  </Pressable>
+                  </View>
                 </View>
               </View>
-            </View>
-          );
-        })}
-      </FieldRateCard>
+            );
+          })}
+        </FieldRateCard>
 
-      <FieldRateCard title="Organized Review">
-        <Pressable onPress={() => setReviewOpen((value) => !value)}>
-          <Text style={styles.libraryToggle}>
-            {reviewOpen ? "Hide" : "Show"} grouped notes
-          </Text>
-        </Pressable>
+        <FieldRateCard title="Organized Review">
+          <Pressable onPress={() => setReviewOpen((value) => !value)}>
+            <Text style={styles.libraryToggle}>
+              {reviewOpen ? "Hide" : "Show"} grouped notes
+            </Text>
+          </Pressable>
 
-        <View style={styles.countGrid}>
-          {TAGS.map((item) => (
-            <View key={item.tag} style={styles.countBox}>
-              <Text style={styles.countValue}>{tagCount(item.tag)}</Text>
-              <Text style={styles.countLabel}>{item.meaning}</Text>
-            </View>
-          ))}
-        </View>
-
-        {reviewOpen && (
-          <View style={styles.noteList}>
-            {TAGS.map((tagItem) => {
-              const groupBlocks = contentBlocks.filter((block) => (block.tag || "none") === tagItem.tag);
-              if (groupBlocks.length === 0) return null;
-
-              return (
-                <View key={tagItem.tag} style={styles.groupContainer}>
-                  <Text style={[styles.groupTitle, { color: getTagTextColor(tagItem.tag) }]}>
-                    {tagItem.meaning}
-                  </Text>
-                  {groupBlocks.map((block) => {
-                    const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
-
-                    return (
-                      <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
-                        <Text style={[
-                          styles.noteText,
-                          { color: getTagTextColor(block.tag || "none") },
-                          formatProps.isBold && { fontWeight: "bold" },
-                          formatProps.isUnderline && { textDecorationLine: "underline" }
-                        ]}>
-                          {block.type === "text" ? block.text : block.caption || "Photo block"}
-                        </Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              );
-            })}
-
-            <View style={styles.insertActions}>
-              <Pressable style={styles.insertButton} onPress={() => insertToDraft(["blue"])}>
-                <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Insert Blue Items</Text>
-              </Pressable>
-              <Pressable style={styles.insertButton} onPress={() => insertToDraft(["cyan"])}>
-                <Text style={[styles.insertButtonText, { color: getTagTextColor("cyan") }]}>Insert Cyan Items</Text>
-              </Pressable>
-              <Pressable style={styles.insertButton} onPress={() => insertToDraft(["orange"])}>
-                <Text style={[styles.insertButtonText, { color: getTagTextColor("orange") }]}>Insert Orange Items</Text>
-              </Pressable>
-              <Pressable style={styles.insertButton} onPress={() => insertToDraft(["red"])}>
-                <Text style={[styles.insertButtonText, { color: getTagTextColor("red") }]}>Insert Red Items</Text>
-              </Pressable>
-              <Pressable style={styles.insertButton} onPress={() => insertToDraft("all")}>
-                <Text style={[styles.insertButtonText, { color: COLORS.text }]}>Insert All</Text>
-              </Pressable>
-            </View>
-          </View>
-        )}
-      </FieldRateCard>
-
-      <FieldRateCard title="Rough Scope Draft">
-        <TextInput
-          style={styles.draftInput}
-          multiline
-          placeholder="Rewrite the messy notes into clean scope language..."
-          placeholderTextColor={COLORS.dim}
-          value={scopeDraft}
-          onChangeText={setScopeDraft}
-        />
-      </FieldRateCard>
-
-      <FieldRateCard title="Document Preview">
-        <Text style={styles.previewTitle}>Field-to-Office Handoff</Text>
-        <Text style={styles.previewText}>
-          {scopeDraft.trim() || "Your rough scope draft will preview here."}
-        </Text>
-      </FieldRateCard>
-
-      <FieldRateCard title="Previous Versions">
-        <Pressable onPress={() => setHistoryOpen((value) => !value)}>
-          <Text style={styles.libraryToggle}>
-            {historyOpen ? "Hide" : "Show"} saved versions ({snapshots.length})
-          </Text>
-        </Pressable>
-
-        {historyOpen && (
-          <View style={styles.noteList}>
-            {snapshots.length === 0 && (
-              <Text style={styles.emptyText}>No previous versions yet.</Text>
-            )}
-
-            {snapshots.map((snapshot) => (
-              <View key={snapshot.id} style={styles.historyItem}>
-                <Text style={styles.historyTitle}>{snapshot.title}</Text>
-                <Text style={styles.historyMeta}>
-                  {new Date(snapshot.createdAt).toLocaleString()}
-                </Text>
-                <Pressable onPress={() => restoreSnapshot(snapshot.id)}>
-                  <Text style={styles.restoreText}>Restore</Text>
-                </Pressable>
+          <View style={styles.countGrid}>
+            {TAGS.map((item) => (
+              <View key={item.tag} style={styles.countBox}>
+                <Text style={styles.countValue}>{tagCount(item.tag)}</Text>
+                <Text style={styles.countLabel}>{item.meaning}</Text>
               </View>
             ))}
           </View>
-        )}
-      </FieldRateCard>
-    </FieldRateScreen>
+
+          {reviewOpen && (
+            <View style={styles.noteList}>
+              {TAGS.map((tagItem) => {
+                const groupBlocks = contentBlocks.filter((block) => (block.tag || "none") === tagItem.tag);
+                if (groupBlocks.length === 0) return null;
+
+                return (
+                  <View key={tagItem.tag} style={styles.groupContainer}>
+                    <Text style={[styles.groupTitle, { color: getTagTextColor(tagItem.tag) }]}>
+                      {tagItem.meaning}
+                    </Text>
+                    {groupBlocks.map((block) => {
+                      const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
+
+                      return (
+                        <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
+                          <Text style={[
+                            styles.noteText,
+                            { color: getTagTextColor(block.tag || "none") },
+                            formatProps.isBold && { fontWeight: "bold" },
+                            formatProps.isUnderline && { textDecorationLine: "underline" }
+                          ]}>
+                            {block.type === "text" ? block.text : block.caption || "Photo block"}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                );
+              })}
+
+              <View style={styles.insertActions}>
+                <Pressable style={styles.insertButton} onPress={() => insertToDraft(["blue"])}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Insert Blue Items</Text>
+                </Pressable>
+                <Pressable style={styles.insertButton} onPress={() => insertToDraft(["cyan"])}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("cyan") }]}>Insert Cyan Items</Text>
+                </Pressable>
+                <Pressable style={styles.insertButton} onPress={() => insertToDraft(["orange"])}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("orange") }]}>Insert Orange Items</Text>
+                </Pressable>
+                <Pressable style={styles.insertButton} onPress={() => insertToDraft(["red"])}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("red") }]}>Insert Red Items</Text>
+                </Pressable>
+                <Pressable style={styles.insertButton} onPress={() => insertToDraft("all")}>
+                  <Text style={[styles.insertButtonText, { color: COLORS.text }]}>Insert All</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+        </FieldRateCard>
+
+        <FieldRateCard title="Rough Scope Draft">
+          <TextInput
+            style={styles.draftInput}
+            multiline
+            placeholder="Rewrite the messy notes into clean scope language..."
+            placeholderTextColor={COLORS.dim}
+            value={scopeDraft}
+            onChangeText={setScopeDraft}
+          />
+        </FieldRateCard>
+
+        <FieldRateCard title="Document Preview">
+          <Text style={styles.previewTitle}>Field-to-Office Handoff</Text>
+          <Text style={styles.previewText}>
+            {scopeDraft.trim() || "Your rough scope draft will preview here."}
+          </Text>
+        </FieldRateCard>
+
+        <FieldRateCard title="Previous Versions">
+          <Pressable onPress={() => setHistoryOpen((value) => !value)}>
+            <Text style={styles.libraryToggle}>
+              {historyOpen ? "Hide" : "Show"} saved versions ({snapshots.length})
+            </Text>
+          </Pressable>
+
+          {historyOpen && (
+            <View style={styles.noteList}>
+              {snapshots.length === 0 && (
+                <Text style={styles.emptyText}>No previous versions yet.</Text>
+              )}
+
+              {snapshots.map((snapshot) => (
+                <View key={snapshot.id} style={styles.historyItem}>
+                  <Text style={styles.historyTitle}>{snapshot.title}</Text>
+                  <Text style={styles.historyMeta}>
+                    {new Date(snapshot.createdAt).toLocaleString()}
+                  </Text>
+                  <Pressable onPress={() => restoreSnapshot(snapshot.id)}>
+                    <Text style={styles.restoreText}>Restore</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </FieldRateCard>
+      </FieldRateScreen>
+
+      {clientDiscoveryOpen && (
+        <View style={styles.curtainOverlay}>
+          <View style={styles.curtainHeader}>
+            <Text style={styles.curtainTitle}>Client Discovery</Text>
+            <Pressable onPress={() => setClientDiscoveryOpen(false)}>
+              <Text style={styles.closeCurtainText}>Close Discovery</Text>
+            </Pressable>
+          </View>
+          <View style={styles.curtainContent}>
+            <ClientDiscoveryCard />
+          </View>
+        </View>
+      )}
+    </View>
   );
 }
 
@@ -537,6 +564,54 @@ function getTagTextColor(tag: WalkthroughTag) {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  topToggleContainer: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  topToggleButton: {
+    backgroundColor: COLORS.surface,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: "center",
+  },
+  topToggleText: {
+    color: COLORS.primary,
+    fontWeight: "900",
+    fontSize: 14,
+  },
+  curtainOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.background,
+    zIndex: 100,
+  },
+  curtainHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+    backgroundColor: COLORS.surface,
+  },
+  curtainTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: COLORS.text,
+  },
+  closeCurtainText: {
+    color: COLORS.primary,
+    fontWeight: "800",
+    fontSize: 14,
+  },
+  curtainContent: {
+    flex: 1,
+    padding: 16,
+  },
   inputGroup: {
     gap: 4,
     marginBottom: 10,
