@@ -28,6 +28,32 @@ export type WalkthroughSnapshot = {
   createdAt: string;
 };
 
+export type WalkthroughClientDiscovery = {
+  clientConversationNotes: string;
+  conceptA_description: string;
+  conceptA_price: string;
+  conceptA_notes: string;
+  conceptB_description: string;
+  conceptB_price: string;
+  conceptB_notes: string;
+  conceptC_description: string;
+  conceptC_price: string;
+  conceptC_notes: string;
+  productMaterialNotes: string;
+  preferredOptions: string;
+  avoidConcernItems: string;
+  budgetConversationNotes: string;
+  basicRange: string;
+  midRange: string;
+  premiumRange: string;
+  pricingRisks: string;
+  timelineConversationNotes: string;
+  idealStartWindow: string;
+  requiredFinishDeadline: string;
+  possiblePhases: string;
+  accessDisruptionNotes: string;
+};
+
 export type WalkthroughDraft = {
   id: string;
   projectName: string;
@@ -35,6 +61,7 @@ export type WalkthroughDraft = {
   contentBlocks: WalkthroughContentBlock[];
   scopeDraft: string;
   snapshots: WalkthroughSnapshot[];
+  clientDiscovery?: WalkthroughClientDiscovery;
   createdAt: string;
   updatedAt: string;
 };
