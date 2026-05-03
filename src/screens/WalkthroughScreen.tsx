@@ -265,7 +265,7 @@ export default function WalkthroughScreen() {
     );
   }
 
-  function buildClientDiscoveryText(section: "concepts" | "budget" | "timeline" | "all") {
+  function buildClientDiscoveryText(section: "concepts" | "products" | "budget" | "timeline" | "all") {
     const parts: string[] = [];
 
     if (section === "concepts" || section === "all") {
@@ -286,6 +286,15 @@ export default function WalkthroughScreen() {
         if (clientDiscovery.conceptC_description) parts.push(`• ${clientDiscovery.conceptC_description}`);
         if (clientDiscovery.conceptC_price) parts.push(`• Price: ${clientDiscovery.conceptC_price}`);
         if (clientDiscovery.conceptC_notes) parts.push(`• Notes: ${clientDiscovery.conceptC_notes}`);
+      }
+    }
+
+    if (section === "products" || section === "all") {
+      if (clientDiscovery.productMaterialNotes || clientDiscovery.preferredOptions || clientDiscovery.avoidConcernItems) {
+        parts.push("Product / Material Options:");
+        if (clientDiscovery.productMaterialNotes) parts.push(`• ${clientDiscovery.productMaterialNotes}`);
+        if (clientDiscovery.preferredOptions) parts.push(`• Preferred: ${clientDiscovery.preferredOptions}`);
+        if (clientDiscovery.avoidConcernItems) parts.push(`• Avoid / Concerns: ${clientDiscovery.avoidConcernItems}`);
       }
     }
 
@@ -314,7 +323,7 @@ export default function WalkthroughScreen() {
     return parts.join("\n");
   }
 
-  function insertClientDiscovery(section: "concepts" | "budget" | "timeline" | "all") {
+  function insertClientDiscovery(section: "concepts" | "products" | "budget" | "timeline" | "all") {
     const textToInsert = buildClientDiscoveryText(section);
     if (!textToInsert) return;
 
@@ -577,6 +586,9 @@ export default function WalkthroughScreen() {
             <View style={styles.insertActions}>
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("concepts")}>
                 <Text style={styles.insertButtonText}>Insert Concepts</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("products")}>
+                <Text style={styles.insertButtonText}>Insert Products / Materials</Text>
               </Pressable>
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("budget")}>
                 <Text style={styles.insertButtonText}>Insert Budget Strategy</Text>
