@@ -25,14 +25,21 @@ function now() {
   return new Date().toISOString();
 }
 
-function createTextBlock(text: string, tag: WalkthroughTag): WalkthroughContentBlock {
+function createTextBlock(
+  text: string,
+  tag: WalkthroughTag,
+  isBold: boolean,
+  isUnderline: boolean
+): WalkthroughContentBlock {
   return {
     id: Date.now().toString(),
     type: "text",
     text,
     tag,
     createdAt: now(),
-  };
+    isBold,
+    isUnderline,
+  } as unknown as WalkthroughContentBlock;
 }
 
 function createImageBlock(tag: WalkthroughTag): WalkthroughContentBlock {
@@ -67,6 +74,8 @@ export default function WalkthroughScreen() {
   const [title, setTitle] = useState("Initial Walkthrough");
   const [activeTag, setActiveTag] = useState<WalkthroughTag>("none");
   const [inputText, setInputText] = useState("");
+  const [isBold, setIsBold] = useState(false);
+  const [isUnderline, setIsUnderline] = useState(false);
   const [contentBlocks, setContentBlocks] = useState<WalkthroughContentBlock[]>([]);
   const [scopeDraft, setScopeDraft] = useState("");
   const [snapshots, setSnapshots] = useState<WalkthroughDraft["snapshots"]>([]);
@@ -107,7 +116,7 @@ export default function WalkthroughScreen() {
     const clean = inputText.trim();
     if (!clean) return;
 
-    setContentBlocks((prev) => [...prev, createTextBlock(clean, activeTag)]);
+    setContentBlocks((prev) => [...prev, createTextBlock(clean, activeTag, isBold, isUnderline)]);
     setSnapshots((prev) =>
       [createSnapshot(projectName, title, contentBlocks, scopeDraft), ...prev].slice(0, 12)
     );
@@ -134,21 +143,29 @@ export default function WalkthroughScreen() {
   }
 
   function tagCount(tag: WalkthroughTag) {
-    return contentBlocks.filter((block) => block.tag === tag).length;
+    return contentBlocks.filter((block) => (block.tag || "none") === tag).length;
   }
 
-  const highlightedText = useMemo(() => {
-    return contentBlocks
-      .filter((block) => block.type === "text" && block.tag !== "none")
-      .map((block) => `• ${block.text}`)
-      .join("\n");
+  const groupedNotesText = useMemo(() => {
+    return TAGS.map((tagItem) => {
+      const groupBlocks = contentBlocks.filter((block) => (block.tag || "none") === tagItem.tag);
+      if (groupBlocks.length === 0) return "";
+      
+      const lines = groupBlocks.map((block) => {
+        const text = block.type === "text" ? block.text : block.caption || "Photo block";
+        return `• ${text}`;
+      });
+      return `${tagItem.meaning}:\n${lines.join("\n")}`;
+    })
+      .filter(Boolean)
+      .join("\n\n");
   }, [contentBlocks]);
 
   function sendHighlightsToDraft() {
-    if (!highlightedText) return;
+    if (!groupedNotesText) return;
 
     setScopeDraft((prev) =>
-      prev.trim() ? `${prev.trim()}\n${highlightedText}` : highlightedText
+      prev.trim() ? `${prev.trim()}\n\n${groupedNotesText}` : groupedNotesText
     );
   }
 
@@ -203,6 +220,21 @@ export default function WalkthroughScreen() {
             </Pressable>
           ))}
 
+          <View style={styles.formatGroup}>
+            <Pressable
+              style={[styles.formatButton, isBold && styles.formatButtonActive]}
+              onPress={() => setIsBold(!isBold)}
+            >
+              <Text style={[styles.formatText, { fontWeight: "bold" }]}>B</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.formatButton, isUnderline && styles.formatButtonActive]}
+              onPress={() => setIsUnderline(!isUnderline)}
+            >
+              <Text style={[styles.formatText, { textDecorationLine: "underline" }]}>U</Text>
+            </Pressable>
+          </View>
+
           <Pressable style={styles.cameraButton} onPress={addImagePlaceholder}>
             <Text style={styles.cameraText}>📷</Text>
           </Pressable>
@@ -228,34 +260,44 @@ export default function WalkthroughScreen() {
           <Text style={styles.emptyText}>No walkthrough content yet.</Text>
         )}
 
-        {contentBlocks.map((block) => (
-          <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
-            {block.type === "text" ? (
-              <Text style={styles.noteText}>{block.text}</Text>
-            ) : (
-              <View>
-                <View style={styles.imagePlaceholder}>
-                  <Text style={styles.imageIcon}>📷</Text>
-                  <Text style={styles.imageText}>Photo block placeholder</Text>
+        {contentBlocks.map((block) => {
+          const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
+          
+          return (
+            <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
+              {block.type === "text" ? (
+                <Text style={[
+                  styles.noteText,
+                  formatProps.isBold && { fontWeight: "bold" },
+                  formatProps.isUnderline && { textDecorationLine: "underline" }
+                ]}>
+                  {block.text}
+                </Text>
+              ) : (
+                <View>
+                  <View style={styles.imagePlaceholder}>
+                    <Text style={styles.imageIcon}>📷</Text>
+                    <Text style={styles.imageText}>Photo block placeholder</Text>
+                  </View>
+                  <TextInput
+                    value={block.caption || ""}
+                    onChangeText={(text) => updateImageCaption(block.id, text)}
+                    placeholder="Photo caption..."
+                    placeholderTextColor={COLORS.dim}
+                    style={styles.captionInput}
+                  />
                 </View>
-                <TextInput
-                  value={block.caption || ""}
-                  onChangeText={(text) => updateImageCaption(block.id, text)}
-                  placeholder="Photo caption..."
-                  placeholderTextColor={COLORS.dim}
-                  style={styles.captionInput}
-                />
-              </View>
-            )}
+              )}
 
-            <Pressable onPress={() => removeBlock(block.id)}>
-              <Text style={styles.removeText}>Remove</Text>
-            </Pressable>
-          </View>
-        ))}
+              <Pressable onPress={() => removeBlock(block.id)}>
+                <Text style={styles.removeText}>Remove</Text>
+              </Pressable>
+            </View>
+          );
+        })}
       </FieldRateCard>
 
-      <FieldRateCard title="Highlight Review">
+      <FieldRateCard title="Organized Review">
         <Pressable onPress={() => setReviewOpen((value) => !value)}>
           <Text style={styles.libraryToggle}>
             {reviewOpen ? "Hide" : "Show"} grouped notes
@@ -263,7 +305,7 @@ export default function WalkthroughScreen() {
         </Pressable>
 
         <View style={styles.countGrid}>
-          {TAGS.filter((item) => item.tag !== "none").map((item) => (
+          {TAGS.map((item) => (
             <View key={item.tag} style={styles.countBox}>
               <Text style={styles.countValue}>{tagCount(item.tag)}</Text>
               <Text style={styles.countLabel}>{item.meaning}</Text>
@@ -273,20 +315,36 @@ export default function WalkthroughScreen() {
 
         {reviewOpen && (
           <View style={styles.noteList}>
-            {contentBlocks
-              .filter((block) => block.tag !== "none")
-              .map((block) => (
-                <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
-                  <Text style={styles.noteText}>
-                    {block.type === "text" ? block.text : block.caption || "Photo block"}
-                  </Text>
+            {TAGS.map((tagItem) => {
+              const groupBlocks = contentBlocks.filter((block) => (block.tag || "none") === tagItem.tag);
+              if (groupBlocks.length === 0) return null;
+
+              return (
+                <View key={tagItem.tag} style={styles.groupContainer}>
+                  <Text style={styles.groupTitle}>{tagItem.meaning}</Text>
+                  {groupBlocks.map((block) => {
+                    const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
+
+                    return (
+                      <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
+                        <Text style={[
+                          styles.noteText,
+                          formatProps.isBold && { fontWeight: "bold" },
+                          formatProps.isUnderline && { textDecorationLine: "underline" }
+                        ]}>
+                          {block.type === "text" ? block.text : block.caption || "Photo block"}
+                        </Text>
+                      </View>
+                    );
+                  })}
                 </View>
-              ))}
+              );
+            })}
           </View>
         )}
 
         <Pressable style={styles.subtleButton} onPress={sendHighlightsToDraft}>
-          <Text style={styles.subtleButtonText}>Send Highlighted Text to Draft</Text>
+          <Text style={styles.subtleButtonText}>Send Organized Notes to Draft</Text>
         </Pressable>
       </FieldRateCard>
 
@@ -376,6 +434,7 @@ const styles = StyleSheet.create({
   toolbar: {
     flexDirection: "row",
     flexWrap: "wrap",
+    alignItems: "center",
     gap: 8,
     marginBottom: 12,
   },
@@ -407,6 +466,27 @@ const styles = StyleSheet.create({
   },
   redBorder: {
     borderColor: COLORS.danger,
+  },
+  formatGroup: {
+    flexDirection: "row",
+    gap: 8,
+    marginLeft: "auto",
+  },
+  formatButton: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: COLORS.surface,
+  },
+  formatButtonActive: {
+    backgroundColor: COLORS.primaryDim,
+    borderColor: COLORS.primary,
+  },
+  formatText: {
+    color: COLORS.text,
+    fontSize: 13,
   },
   cameraButton: {
     borderWidth: 1,
@@ -448,6 +528,15 @@ const styles = StyleSheet.create({
   noteList: {
     gap: 10,
     marginTop: 12,
+  },
+  groupContainer: {
+    marginBottom: 16,
+  },
+  groupTitle: {
+    fontSize: 14,
+    fontWeight: "900",
+    marginBottom: 8,
+    color: COLORS.text,
   },
   noteItem: {
     borderWidth: 1,
