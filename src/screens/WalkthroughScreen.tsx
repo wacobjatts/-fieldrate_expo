@@ -1,19 +1,17 @@
 // src/screens/WalkthroughScreen.tsx
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
 import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
+import { walkthroughRepository } from "../data/repositories/walkthroughRepository";
 import { COLORS } from "../theme/colors";
-
-type WalkthroughTag = "none" | "blue" | "cyan" | "orange" | "red";
-
-type WalkthroughNote = {
-  id: string;
-  text: string;
-  tag: WalkthroughTag;
-};
+import type {
+  WalkthroughContentBlock,
+  WalkthroughDraft,
+  WalkthroughTag,
+} from "../types/walkthrough";
 
 const TAGS: { tag: WalkthroughTag; label: string; meaning: string }[] = [
   { tag: "none", label: "T", meaning: "Normal" },
@@ -23,57 +21,168 @@ const TAGS: { tag: WalkthroughTag; label: string; meaning: string }[] = [
   { tag: "red", label: "Red", meaning: "Issue / risk / critical" },
 ];
 
-export default function WalkthroughScreen() {
-  const [activeTag, setActiveTag] = useState<WalkthroughTag>("none");
-  const [roughText, setRoughText] = useState("");
-  const [notes, setNotes] = useState<WalkthroughNote[]>([]);
-  const [scopeDraft, setScopeDraft] = useState("");
-  const [reviewOpen, setReviewOpen] = useState(true);
+function now() {
+  return new Date().toISOString();
+}
 
-  function addRoughNote() {
-    const clean = roughText.trim();
+function createTextBlock(text: string, tag: WalkthroughTag): WalkthroughContentBlock {
+  return {
+    id: Date.now().toString(),
+    type: "text",
+    text,
+    tag,
+    createdAt: now(),
+  };
+}
+
+function createImageBlock(tag: WalkthroughTag): WalkthroughContentBlock {
+  return {
+    id: Date.now().toString(),
+    type: "image",
+    uri: "placeholder",
+    caption: "",
+    tag,
+    createdAt: now(),
+  };
+}
+
+function createSnapshot(
+  projectName: string,
+  title: string,
+  contentBlocks: WalkthroughContentBlock[],
+  scopeDraft: string
+) {
+  return {
+    id: `snap-${Date.now()}`,
+    title,
+    projectName,
+    contentBlocks,
+    scopeDraft,
+    createdAt: now(),
+  };
+}
+
+export default function WalkthroughScreen() {
+  const [projectName, setProjectName] = useState("Untitled Project");
+  const [title, setTitle] = useState("Initial Walkthrough");
+  const [activeTag, setActiveTag] = useState<WalkthroughTag>("none");
+  const [inputText, setInputText] = useState("");
+  const [contentBlocks, setContentBlocks] = useState<WalkthroughContentBlock[]>([]);
+  const [scopeDraft, setScopeDraft] = useState("");
+  const [snapshots, setSnapshots] = useState<WalkthroughDraft["snapshots"]>([]);
+  const [reviewOpen, setReviewOpen] = useState(true);
+  const [historyOpen, setHistoryOpen] = useState(false);
+
+  useEffect(() => {
+    async function loadSaved() {
+      const saved = await walkthroughRepository.getLatest();
+      if (!saved) return;
+
+      setProjectName(saved.projectName || "Untitled Project");
+      setTitle(saved.title || "Initial Walkthrough");
+      setContentBlocks(saved.contentBlocks || []);
+      setScopeDraft(saved.scopeDraft || "");
+      setSnapshots(saved.snapshots || []);
+    }
+
+    loadSaved();
+  }, []);
+
+  useEffect(() => {
+    const draft: WalkthroughDraft = {
+      id: "current-walkthrough-draft",
+      projectName,
+      title,
+      contentBlocks,
+      scopeDraft,
+      snapshots,
+      createdAt: now(),
+      updatedAt: now(),
+    };
+
+    walkthroughRepository.save(draft);
+  }, [projectName, title, contentBlocks, scopeDraft, snapshots]);
+
+  function addTextBlock() {
+    const clean = inputText.trim();
     if (!clean) return;
 
-    setNotes((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        text: clean,
-        tag: activeTag,
-      },
-    ]);
-
-    setRoughText("");
+    setContentBlocks((prev) => [...prev, createTextBlock(clean, activeTag)]);
+    setSnapshots((prev) =>
+      [createSnapshot(projectName, title, contentBlocks, scopeDraft), ...prev].slice(0, 12)
+    );
+    setInputText("");
   }
 
-  function removeNote(id: string) {
-    setNotes((prev) => prev.filter((note) => note.id !== id));
+  function addImagePlaceholder() {
+    setContentBlocks((prev) => [...prev, createImageBlock(activeTag)]);
+    setSnapshots((prev) =>
+      [createSnapshot(projectName, title, contentBlocks, scopeDraft), ...prev].slice(0, 12)
+    );
+  }
+
+  function removeBlock(id: string) {
+    setContentBlocks((prev) => prev.filter((block) => block.id !== id));
+  }
+
+  function updateImageCaption(id: string, caption: string) {
+    setContentBlocks((prev) =>
+      prev.map((block) =>
+        block.id === id && block.type === "image" ? { ...block, caption } : block
+      )
+    );
   }
 
   function tagCount(tag: WalkthroughTag) {
-    return notes.filter((note) => note.tag === tag).length;
+    return contentBlocks.filter((block) => block.tag === tag).length;
   }
 
-  const scopeHintText = useMemo(() => {
-    return notes
-      .filter((note) => note.tag !== "none")
-      .map((note) => `• ${note.text}`)
+  const highlightedText = useMemo(() => {
+    return contentBlocks
+      .filter((block) => block.type === "text" && block.tag !== "none")
+      .map((block) => `• ${block.text}`)
       .join("\n");
-  }, [notes]);
+  }, [contentBlocks]);
 
   function sendHighlightsToDraft() {
-    if (!scopeHintText) return;
+    if (!highlightedText) return;
 
     setScopeDraft((prev) =>
-      prev.trim() ? `${prev.trim()}\n${scopeHintText}` : scopeHintText
+      prev.trim() ? `${prev.trim()}\n${highlightedText}` : highlightedText
     );
+  }
+
+  function restoreSnapshot(snapshotId: string) {
+    const snapshot = snapshots.find((item) => item.id === snapshotId);
+    if (!snapshot) return;
+
+    setProjectName(snapshot.projectName);
+    setTitle(snapshot.title);
+    setContentBlocks(snapshot.contentBlocks);
+    setScopeDraft(snapshot.scopeDraft);
   }
 
   return (
     <FieldRateScreen title="Walkthrough" subtitle="Capture field reality first">
+      <FieldRateCard title="Walkthrough Control">
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Project Name</Text>
+          <TextInput
+            value={projectName}
+            onChangeText={setProjectName}
+            style={styles.input}
+          />
+        </View>
+
+        <View style={styles.inputGroup}>
+          <Text style={styles.label}>Walkthrough Title</Text>
+          <TextInput value={title} onChangeText={setTitle} style={styles.input} />
+        </View>
+      </FieldRateCard>
+
       <FieldRateCard title="Rough Notes">
         <Text style={styles.helper}>
-          Capture messy jobsite notes. Colors are field triage only — nothing becomes scope until you choose.
+          Capture messy jobsite notes. Photos are inline blocks. Colors are field triage only.
         </Text>
 
         <View style={styles.toolbar}>
@@ -93,6 +202,10 @@ export default function WalkthroughScreen() {
               <Text style={styles.tagText}>{item.label}</Text>
             </Pressable>
           ))}
+
+          <Pressable style={styles.cameraButton} onPress={addImagePlaceholder}>
+            <Text style={styles.cameraText}>📷</Text>
+          </Pressable>
         </View>
 
         <TextInput
@@ -100,13 +213,46 @@ export default function WalkthroughScreen() {
           multiline
           placeholder="Type rough walkthrough notes..."
           placeholderTextColor={COLORS.dim}
-          value={roughText}
-          onChangeText={setRoughText}
+          value={inputText}
+          onChangeText={setInputText}
         />
 
-        <Pressable style={styles.primaryButton} onPress={addRoughNote}>
-          <Text style={styles.primaryButtonText}>Add Note</Text>
+        <Pressable style={styles.primaryButton} onPress={addTextBlock}>
+          <Text style={styles.primaryButtonText}>Add Text Block</Text>
         </Pressable>
+      </FieldRateCard>
+
+
+      <FieldRateCard title="Inline Notes">
+        {contentBlocks.length === 0 && (
+          <Text style={styles.emptyText}>No walkthrough content yet.</Text>
+        )}
+
+        {contentBlocks.map((block) => (
+          <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
+            {block.type === "text" ? (
+              <Text style={styles.noteText}>{block.text}</Text>
+            ) : (
+              <View>
+                <View style={styles.imagePlaceholder}>
+                  <Text style={styles.imageIcon}>📷</Text>
+                  <Text style={styles.imageText}>Photo block placeholder</Text>
+                </View>
+                <TextInput
+                  value={block.caption || ""}
+                  onChangeText={(text) => updateImageCaption(block.id, text)}
+                  placeholder="Photo caption..."
+                  placeholderTextColor={COLORS.dim}
+                  style={styles.captionInput}
+                />
+              </View>
+            )}
+
+            <Pressable onPress={() => removeBlock(block.id)}>
+              <Text style={styles.removeText}>Remove</Text>
+            </Pressable>
+          </View>
+        ))}
       </FieldRateCard>
 
       <FieldRateCard title="Highlight Review">
@@ -127,23 +273,20 @@ export default function WalkthroughScreen() {
 
         {reviewOpen && (
           <View style={styles.noteList}>
-            {notes.length === 0 && (
-              <Text style={styles.emptyText}>No walkthrough notes yet.</Text>
-            )}
-
-            {notes.map((note) => (
-              <View key={note.id} style={[styles.noteItem, tagStyle(note.tag)]}>
-                <Text style={styles.noteText}>{note.text}</Text>
-                <Pressable onPress={() => removeNote(note.id)}>
-                  <Text style={styles.removeText}>Remove</Text>
-                </Pressable>
-              </View>
-            ))}
+            {contentBlocks
+              .filter((block) => block.tag !== "none")
+              .map((block) => (
+                <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
+                  <Text style={styles.noteText}>
+                    {block.type === "text" ? block.text : block.caption || "Photo block"}
+                  </Text>
+                </View>
+              ))}
           </View>
         )}
 
         <Pressable style={styles.subtleButton} onPress={sendHighlightsToDraft}>
-          <Text style={styles.subtleButtonText}>Send Highlighted Notes to Draft</Text>
+          <Text style={styles.subtleButtonText}>Send Highlighted Text to Draft</Text>
         </Pressable>
       </FieldRateCard>
 
@@ -165,9 +308,33 @@ export default function WalkthroughScreen() {
         </Text>
       </FieldRateCard>
 
-      <Pressable style={styles.saveButton}>
-        <Text style={styles.saveButtonText}>Save Walkthrough</Text>
-      </Pressable>
+      <FieldRateCard title="Previous Versions">
+        <Pressable onPress={() => setHistoryOpen((value) => !value)}>
+          <Text style={styles.libraryToggle}>
+            {historyOpen ? "Hide" : "Show"} saved versions ({snapshots.length})
+          </Text>
+        </Pressable>
+
+        {historyOpen && (
+          <View style={styles.noteList}>
+            {snapshots.length === 0 && (
+              <Text style={styles.emptyText}>No previous versions yet.</Text>
+            )}
+
+            {snapshots.map((snapshot) => (
+              <View key={snapshot.id} style={styles.historyItem}>
+                <Text style={styles.historyTitle}>{snapshot.title}</Text>
+                <Text style={styles.historyMeta}>
+                  {new Date(snapshot.createdAt).toLocaleString()}
+                </Text>
+                <Pressable onPress={() => restoreSnapshot(snapshot.id)}>
+                  <Text style={styles.restoreText}>Restore</Text>
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        )}
+      </FieldRateCard>
     </FieldRateScreen>
   );
 }
@@ -181,6 +348,25 @@ function tagStyle(tag: WalkthroughTag) {
 }
 
 const styles = StyleSheet.create({
+  inputGroup: {
+    gap: 4,
+    marginBottom: 10,
+  },
+  label: {
+    color: COLORS.dim,
+    fontSize: 10,
+    fontWeight: "800",
+    textTransform: "uppercase",
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 12,
+    color: COLORS.text,
+    backgroundColor: COLORS.background,
+    fontSize: 14,
+  },
   helper: {
     color: COLORS.muted,
     fontSize: 12,
@@ -210,10 +396,30 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
   },
-  blueBorder: { borderColor: COLORS.primary },
-  cyanBorder: { borderColor: COLORS.primary },
-  orangeBorder: { borderColor: COLORS.warning },
-  redBorder: { borderColor: COLORS.danger },
+  blueBorder: {
+    borderColor: COLORS.primary,
+  },
+  cyanBorder: {
+    borderColor: COLORS.primary,
+  },
+  orangeBorder: {
+    borderColor: COLORS.warning,
+  },
+  redBorder: {
+    borderColor: COLORS.danger,
+  },
+  cameraButton: {
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: COLORS.primaryDim,
+  },
+  cameraText: {
+    color: COLORS.primary,
+    fontWeight: "900",
+  },
   roughInput: {
     minHeight: 150,
     borderWidth: 1,
@@ -234,6 +440,73 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     color: COLORS.background,
     fontWeight: "900",
+  },
+  emptyText: {
+    color: COLORS.muted,
+    fontSize: 12,
+  },
+  noteList: {
+    gap: 10,
+    marginTop: 12,
+  },
+  noteItem: {
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 10,
+  },
+  noteText: {
+    color: COLORS.text,
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  normalTag: {
+    borderColor: COLORS.border,
+  },
+  blueTag: {
+    borderColor: COLORS.primary,
+  },
+  cyanTag: {
+    borderColor: COLORS.primary,
+  },
+  orangeTag: {
+    borderColor: COLORS.warning,
+  },
+  redTag: {
+    borderColor: COLORS.danger,
+  },
+  imagePlaceholder: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    paddingVertical: 22,
+    alignItems: "center",
+    backgroundColor: COLORS.surface,
+  },
+  imageIcon: {
+    fontSize: 28,
+    marginBottom: 6,
+  },
+  imageText: {
+    color: COLORS.muted,
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  captionInput: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 10,
+    padding: 10,
+    color: COLORS.text,
+    backgroundColor: COLORS.background,
+    marginTop: 8,
+  },
+  removeText: {
+    color: COLORS.danger,
+    fontSize: 11,
+    fontWeight: "800",
+    marginTop: 8,
+    textAlign: "right",
   },
   libraryToggle: {
     color: COLORS.primary,
@@ -262,46 +535,6 @@ const styles = StyleSheet.create({
     color: COLORS.dim,
     fontSize: 10,
     marginTop: 4,
-  },
-  noteList: {
-    gap: 10,
-    marginTop: 12,
-  },
-  noteItem: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 10,
-  },
-  noteText: {
-    color: COLORS.text,
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  normalTag: {
-    borderColor: COLORS.border,
-  },
-  blueTag: {
-    borderColor: COLORS.primary,
-  },
-  cyanTag: {
-    borderColor: COLORS.primary,
-  },
-  orangeTag: {
-    borderColor: COLORS.warning,
-  },
-  redTag: {
-    borderColor: COLORS.danger,
-  },
-  removeText: {
-    color: COLORS.danger,
-    fontSize: 11,
-    fontWeight: "800",
-    marginTop: 8,
-    textAlign: "right",
-  },
-  emptyText: {
-    color: COLORS.muted,
-    fontSize: 12,
   },
   subtleButton: {
     borderWidth: 1,
@@ -335,17 +568,26 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     lineHeight: 20,
   },
-  saveButton: {
-    marginHorizontal: 16,
-    marginBottom: 24,
+  historyItem: {
     borderWidth: 1,
-    borderColor: COLORS.success,
+    borderColor: COLORS.border,
     borderRadius: 12,
-    paddingVertical: 15,
-    alignItems: "center",
+    padding: 10,
+    backgroundColor: COLORS.background,
   },
-  saveButtonText: {
-    color: COLORS.success,
+  historyTitle: {
+    color: COLORS.text,
     fontWeight: "900",
+  },
+  historyMeta: {
+    color: COLORS.dim,
+    fontSize: 11,
+    marginTop: 4,
+  },
+  restoreText: {
+    color: COLORS.primary,
+    fontWeight: "800",
+    marginTop: 8,
+    textAlign: "right",
   },
 });
