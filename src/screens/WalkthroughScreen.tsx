@@ -265,6 +265,64 @@ export default function WalkthroughScreen() {
     );
   }
 
+  function buildClientDiscoveryText(section: "concepts" | "budget" | "timeline" | "all") {
+    const parts: string[] = [];
+
+    if (section === "concepts" || section === "all") {
+      if (clientDiscovery.conceptA_description || clientDiscovery.conceptA_price || clientDiscovery.conceptA_notes) {
+        parts.push("Concept A:");
+        if (clientDiscovery.conceptA_description) parts.push(`• ${clientDiscovery.conceptA_description}`);
+        if (clientDiscovery.conceptA_price) parts.push(`• Price: ${clientDiscovery.conceptA_price}`);
+        if (clientDiscovery.conceptA_notes) parts.push(`• Notes: ${clientDiscovery.conceptA_notes}`);
+      }
+      if (clientDiscovery.conceptB_description || clientDiscovery.conceptB_price || clientDiscovery.conceptB_notes) {
+        parts.push("Concept B:");
+        if (clientDiscovery.conceptB_description) parts.push(`• ${clientDiscovery.conceptB_description}`);
+        if (clientDiscovery.conceptB_price) parts.push(`• Price: ${clientDiscovery.conceptB_price}`);
+        if (clientDiscovery.conceptB_notes) parts.push(`• Notes: ${clientDiscovery.conceptB_notes}`);
+      }
+      if (clientDiscovery.conceptC_description || clientDiscovery.conceptC_price || clientDiscovery.conceptC_notes) {
+        parts.push("Concept C:");
+        if (clientDiscovery.conceptC_description) parts.push(`• ${clientDiscovery.conceptC_description}`);
+        if (clientDiscovery.conceptC_price) parts.push(`• Price: ${clientDiscovery.conceptC_price}`);
+        if (clientDiscovery.conceptC_notes) parts.push(`• Notes: ${clientDiscovery.conceptC_notes}`);
+      }
+    }
+
+    if (section === "budget" || section === "all") {
+      if (clientDiscovery.budgetConversationNotes || clientDiscovery.basicRange || clientDiscovery.midRange || clientDiscovery.premiumRange || clientDiscovery.pricingRisks) {
+        parts.push("Budget Strategy:");
+        if (clientDiscovery.budgetConversationNotes) parts.push(`• ${clientDiscovery.budgetConversationNotes}`);
+        if (clientDiscovery.basicRange) parts.push(`• Basic Range: ${clientDiscovery.basicRange}`);
+        if (clientDiscovery.midRange) parts.push(`• Mid Range: ${clientDiscovery.midRange}`);
+        if (clientDiscovery.premiumRange) parts.push(`• Premium Range: ${clientDiscovery.premiumRange}`);
+        if (clientDiscovery.pricingRisks) parts.push(`• Risks: ${clientDiscovery.pricingRisks}`);
+      }
+    }
+
+    if (section === "timeline" || section === "all") {
+      if (clientDiscovery.timelineConversationNotes || clientDiscovery.idealStartWindow || clientDiscovery.requiredFinishDeadline || clientDiscovery.possiblePhases || clientDiscovery.accessDisruptionNotes) {
+        parts.push("Timeline / Phasing:");
+        if (clientDiscovery.timelineConversationNotes) parts.push(`• ${clientDiscovery.timelineConversationNotes}`);
+        if (clientDiscovery.idealStartWindow) parts.push(`• Start: ${clientDiscovery.idealStartWindow}`);
+        if (clientDiscovery.requiredFinishDeadline) parts.push(`• Deadline: ${clientDiscovery.requiredFinishDeadline}`);
+        if (clientDiscovery.possiblePhases) parts.push(`• Phases: ${clientDiscovery.possiblePhases}`);
+        if (clientDiscovery.accessDisruptionNotes) parts.push(`• Constraints: ${clientDiscovery.accessDisruptionNotes}`);
+      }
+    }
+
+    return parts.join("\n");
+  }
+
+  function insertClientDiscovery(section: "concepts" | "budget" | "timeline" | "all") {
+    const textToInsert = buildClientDiscoveryText(section);
+    if (!textToInsert) return;
+
+    setScopeDraft((prev) =>
+      prev.trim() ? `${prev.trim()}\n\n${textToInsert}` : textToInsert
+    );
+  }
+
   function restoreSnapshot(snapshotId: string) {
     const snapshot = snapshots.find((item) => item.id === snapshotId);
     if (!snapshot) return;
@@ -514,6 +572,24 @@ export default function WalkthroughScreen() {
         </FieldRateCard>
 
         <FieldRateCard title="Rough Scope Draft">
+          <View style={styles.discoveryInsertSection}>
+            <Text style={styles.label}>Insert From Client Discovery</Text>
+            <View style={styles.insertActions}>
+              <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("concepts")}>
+                <Text style={styles.insertButtonText}>Insert Concepts</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("budget")}>
+                <Text style={styles.insertButtonText}>Insert Budget Strategy</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("timeline")}>
+                <Text style={styles.insertButtonText}>Insert Timeline</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("all")}>
+                <Text style={styles.insertButtonText}>Insert All Discovery</Text>
+              </Pressable>
+            </View>
+          </View>
+
           <TextInput
             style={styles.draftInput}
             multiline
@@ -897,6 +973,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
   },
+  discoveryInsertSection: {
+    marginBottom: 16,
+  },
   insertActions: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -914,6 +993,7 @@ const styles = StyleSheet.create({
   insertButtonText: {
     fontWeight: "800",
     fontSize: 11,
+    color: COLORS.text,
   },
   draftInput: {
     minHeight: 180,
