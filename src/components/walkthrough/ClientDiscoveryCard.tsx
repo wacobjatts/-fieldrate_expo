@@ -1,65 +1,41 @@
 // src/components/walkthrough/ClientDiscoveryCard.tsx
 
-import React, { useState } from "react";
+import React from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { COLORS } from "../../theme/colors";
+import type { WalkthroughClientDiscovery } from "../../types/walkthrough";
 
-export default function ClientDiscoveryCard() {
-  const [clientConversationNotes, setClientConversationNotes] = useState("");
-  
-  const [conceptA_description, setConceptA_description] = useState("");
-  const [conceptA_price, setConceptA_price] = useState("");
-  const [conceptA_notes, setConceptA_notes] = useState("");
+type ClientDiscoveryCardProps = {
+  value: WalkthroughClientDiscovery;
+  onChange: (next: WalkthroughClientDiscovery) => void;
+};
 
-  const [conceptB_description, setConceptB_description] = useState("");
-  const [conceptB_price, setConceptB_price] = useState("");
-  const [conceptB_notes, setConceptB_notes] = useState("");
-
-  const [conceptC_description, setConceptC_description] = useState("");
-  const [conceptC_price, setConceptC_price] = useState("");
-  const [conceptC_notes, setConceptC_notes] = useState("");
-
-  const [productMaterialNotes, setProductMaterialNotes] = useState("");
-  const [preferredOptions, setPreferredOptions] = useState("");
-  const [avoidConcernItems, setAvoidConcernItems] = useState("");
-
-  const [budgetConversationNotes, setBudgetConversationNotes] = useState("");
-  const [basicRange, setBasicRange] = useState("");
-  const [midRange, setMidRange] = useState("");
-  const [premiumRange, setPremiumRange] = useState("");
-  const [pricingRisks, setPricingRisks] = useState("");
-
-  const [timelineConversationNotes, setTimelineConversationNotes] = useState("");
-  const [idealStartWindow, setIdealStartWindow] = useState("");
-  const [requiredFinishDeadline, setRequiredFinishDeadline] = useState("");
-  const [possiblePhases, setPossiblePhases] = useState("");
-  const [accessDisruptionNotes, setAccessDisruptionNotes] = useState("");
-
+export default function ClientDiscoveryCard({ value, onChange }: ClientDiscoveryCardProps) {
   const hasAnyContent = Boolean(
-    clientConversationNotes ||
-      conceptA_description ||
-      conceptA_price ||
-      conceptA_notes ||
-      conceptB_description ||
-      conceptB_price ||
-      conceptB_notes ||
-      conceptC_description ||
-      conceptC_price ||
-      conceptC_notes ||
-      productMaterialNotes ||
-      preferredOptions ||
-      avoidConcernItems ||
-      budgetConversationNotes ||
-      basicRange ||
-      midRange ||
-      premiumRange ||
-      pricingRisks ||
-      timelineConversationNotes ||
-      idealStartWindow ||
-      requiredFinishDeadline ||
-      possiblePhases ||
-      accessDisruptionNotes
+    value.clientConversationNotes ||
+      value.conceptA_description ||
+      value.conceptA_price ||
+      value.conceptA_notes ||
+      value.conceptB_description ||
+      value.conceptB_price ||
+      value.conceptB_notes ||
+      value.conceptC_description ||
+      value.conceptC_price ||
+      value.conceptC_notes ||
+      value.productMaterialNotes ||
+      value.preferredOptions ||
+      value.avoidConcernItems ||
+      value.budgetConversationNotes ||
+      value.basicRange ||
+      value.midRange ||
+      value.premiumRange ||
+      value.pricingRisks ||
+      value.timelineConversationNotes ||
+      value.idealStartWindow ||
+      value.requiredFinishDeadline ||
+      value.possiblePhases ||
+      value.accessDisruptionNotes
   );
 
   return (
@@ -71,8 +47,8 @@ export default function ClientDiscoveryCard() {
           multiline
           placeholder="Capture raw client thoughts and requests..."
           placeholderTextColor={COLORS.dim}
-          value={clientConversationNotes}
-          onChangeText={setClientConversationNotes}
+          value={value.clientConversationNotes}
+          onChangeText={(text) => onChange({ ...value, clientConversationNotes: text })}
         />
       </View>
 
@@ -86,23 +62,23 @@ export default function ClientDiscoveryCard() {
             multiline
             placeholder="What is this approach?"
             placeholderTextColor={COLORS.dim}
-            value={conceptA_description}
-            onChangeText={setConceptA_description}
+            value={value.conceptA_description}
+            onChangeText={(text) => onChange({ ...value, conceptA_description: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="Rough cost range (no exact numbers)"
             placeholderTextColor={COLORS.dim}
-            value={conceptA_price}
-            onChangeText={setConceptA_price}
+            value={value.conceptA_price}
+            onChangeText={(text) => onChange({ ...value, conceptA_price: text })}
           />
           <TextInput
             style={styles.input}
             multiline
             placeholder="Pros, cons, constraints, considerations"
             placeholderTextColor={COLORS.dim}
-            value={conceptA_notes}
-            onChangeText={setConceptA_notes}
+            value={value.conceptA_notes}
+            onChangeText={(text) => onChange({ ...value, conceptA_notes: text })}
           />
           <View style={styles.photoPlaceholder}>
             <Text style={styles.photoIcon}>📷</Text>
@@ -116,23 +92,23 @@ export default function ClientDiscoveryCard() {
             multiline
             placeholder="What is this approach?"
             placeholderTextColor={COLORS.dim}
-            value={conceptB_description}
-            onChangeText={setConceptB_description}
+            value={value.conceptB_description}
+            onChangeText={(text) => onChange({ ...value, conceptB_description: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="Rough cost range (no exact numbers)"
             placeholderTextColor={COLORS.dim}
-            value={conceptB_price}
-            onChangeText={setConceptB_price}
+            value={value.conceptB_price}
+            onChangeText={(text) => onChange({ ...value, conceptB_price: text })}
           />
           <TextInput
             style={styles.input}
             multiline
             placeholder="Pros, cons, constraints, considerations"
             placeholderTextColor={COLORS.dim}
-            value={conceptB_notes}
-            onChangeText={setConceptB_notes}
+            value={value.conceptB_notes}
+            onChangeText={(text) => onChange({ ...value, conceptB_notes: text })}
           />
           <View style={styles.photoPlaceholder}>
             <Text style={styles.photoIcon}>📷</Text>
@@ -146,23 +122,23 @@ export default function ClientDiscoveryCard() {
             multiline
             placeholder="What is this approach?"
             placeholderTextColor={COLORS.dim}
-            value={conceptC_description}
-            onChangeText={setConceptC_description}
+            value={value.conceptC_description}
+            onChangeText={(text) => onChange({ ...value, conceptC_description: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="Rough cost range (no exact numbers)"
             placeholderTextColor={COLORS.dim}
-            value={conceptC_price}
-            onChangeText={setConceptC_price}
+            value={value.conceptC_price}
+            onChangeText={(text) => onChange({ ...value, conceptC_price: text })}
           />
           <TextInput
             style={styles.input}
             multiline
             placeholder="Pros, cons, constraints, considerations"
             placeholderTextColor={COLORS.dim}
-            value={conceptC_notes}
-            onChangeText={setConceptC_notes}
+            value={value.conceptC_notes}
+            onChangeText={(text) => onChange({ ...value, conceptC_notes: text })}
           />
           <View style={styles.photoPlaceholder}>
             <Text style={styles.photoIcon}>📷</Text>
@@ -178,24 +154,24 @@ export default function ClientDiscoveryCard() {
             multiline
             placeholder="Products, finishes, fixtures, materials, or brands discussed..."
             placeholderTextColor={COLORS.dim}
-            value={productMaterialNotes}
-            onChangeText={setProductMaterialNotes}
+            value={value.productMaterialNotes}
+            onChangeText={(text) => onChange({ ...value, productMaterialNotes: text })}
           />
           <TextInput
             style={styles.input}
             multiline
             placeholder="What does the client seem drawn to?"
             placeholderTextColor={COLORS.dim}
-            value={preferredOptions}
-            onChangeText={setPreferredOptions}
+            value={value.preferredOptions}
+            onChangeText={(text) => onChange({ ...value, preferredOptions: text })}
           />
           <TextInput
             style={styles.input}
             multiline
             placeholder="Products, materials, costs, or choices to avoid..."
             placeholderTextColor={COLORS.dim}
-            value={avoidConcernItems}
-            onChangeText={setAvoidConcernItems}
+            value={value.avoidConcernItems}
+            onChangeText={(text) => onChange({ ...value, avoidConcernItems: text })}
           />
           <View style={styles.photoPlaceholder}>
             <Text style={styles.photoIcon}>📷</Text>
@@ -211,37 +187,37 @@ export default function ClientDiscoveryCard() {
             multiline
             placeholder="What budget range, comfort level, or pricing concerns came up?"
             placeholderTextColor={COLORS.dim}
-            value={budgetConversationNotes}
-            onChangeText={setBudgetConversationNotes}
+            value={value.budgetConversationNotes}
+            onChangeText={(text) => onChange({ ...value, budgetConversationNotes: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="Simple / minimum viable option range..."
             placeholderTextColor={COLORS.dim}
-            value={basicRange}
-            onChangeText={setBasicRange}
+            value={value.basicRange}
+            onChangeText={(text) => onChange({ ...value, basicRange: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="Balanced option range..."
             placeholderTextColor={COLORS.dim}
-            value={midRange}
-            onChangeText={setMidRange}
+            value={value.midRange}
+            onChangeText={(text) => onChange({ ...value, midRange: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="Higher-end option range..."
             placeholderTextColor={COLORS.dim}
-            value={premiumRange}
-            onChangeText={setPremiumRange}
+            value={value.premiumRange}
+            onChangeText={(text) => onChange({ ...value, premiumRange: text })}
           />
           <TextInput
             style={styles.input}
             multiline
             placeholder="Unknowns that could affect cost..."
             placeholderTextColor={COLORS.dim}
-            value={pricingRisks}
-            onChangeText={setPricingRisks}
+            value={value.pricingRisks}
+            onChangeText={(text) => onChange({ ...value, pricingRisks: text })}
           />
         </View>
       </View>
@@ -254,37 +230,37 @@ export default function ClientDiscoveryCard() {
             multiline
             placeholder="What timing expectations or constraints came up?"
             placeholderTextColor={COLORS.dim}
-            value={timelineConversationNotes}
-            onChangeText={setTimelineConversationNotes}
+            value={value.timelineConversationNotes}
+            onChangeText={(text) => onChange({ ...value, timelineConversationNotes: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="When would they like to start?"
             placeholderTextColor={COLORS.dim}
-            value={idealStartWindow}
-            onChangeText={setIdealStartWindow}
+            value={value.idealStartWindow}
+            onChangeText={(text) => onChange({ ...value, idealStartWindow: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="Any hard deadlines?"
             placeholderTextColor={COLORS.dim}
-            value={requiredFinishDeadline}
-            onChangeText={setRequiredFinishDeadline}
+            value={value.requiredFinishDeadline}
+            onChangeText={(text) => onChange({ ...value, requiredFinishDeadline: text })}
           />
           <TextInput
             style={styles.shortInput}
             placeholder="Could this be broken into phases?"
             placeholderTextColor={COLORS.dim}
-            value={possiblePhases}
-            onChangeText={setPossiblePhases}
+            value={value.possiblePhases}
+            onChangeText={(text) => onChange({ ...value, possiblePhases: text })}
           />
           <TextInput
             style={styles.input}
             multiline
             placeholder="Access limits, working hours, living conditions, business disruption..."
             placeholderTextColor={COLORS.dim}
-            value={accessDisruptionNotes}
-            onChangeText={setAccessDisruptionNotes}
+            value={value.accessDisruptionNotes}
+            onChangeText={(text) => onChange({ ...value, accessDisruptionNotes: text })}
           />
         </View>
       </View>
@@ -296,68 +272,68 @@ export default function ClientDiscoveryCard() {
             <Text style={styles.emptyPreviewText}>Client package preview will appear here.</Text>
           ) : (
             <View style={styles.previewContent}>
-              {clientConversationNotes ? (
+              {value.clientConversationNotes ? (
                 <View style={styles.previewSection}>
                   <Text style={styles.previewHeading}>Client Notes</Text>
-                  <Text style={styles.previewText}>{clientConversationNotes}</Text>
+                  <Text style={styles.previewText}>{value.clientConversationNotes}</Text>
                 </View>
               ) : null}
 
-              {(conceptA_description || conceptA_price || conceptA_notes) ? (
+              {(value.conceptA_description || value.conceptA_price || value.conceptA_notes) ? (
                 <View style={styles.previewSection}>
                   <Text style={styles.previewHeading}>Concept A</Text>
-                  {conceptA_description ? <Text style={styles.previewText}>{conceptA_description}</Text> : null}
-                  {conceptA_price ? <Text style={styles.previewText}>Price Range: {conceptA_price}</Text> : null}
-                  {conceptA_notes ? <Text style={styles.previewText}>Notes: {conceptA_notes}</Text> : null}
+                  {value.conceptA_description ? <Text style={styles.previewText}>{value.conceptA_description}</Text> : null}
+                  {value.conceptA_price ? <Text style={styles.previewText}>Price Range: {value.conceptA_price}</Text> : null}
+                  {value.conceptA_notes ? <Text style={styles.previewText}>Notes: {value.conceptA_notes}</Text> : null}
                 </View>
               ) : null}
 
-              {(conceptB_description || conceptB_price || conceptB_notes) ? (
+              {(value.conceptB_description || value.conceptB_price || value.conceptB_notes) ? (
                 <View style={styles.previewSection}>
                   <Text style={styles.previewHeading}>Concept B</Text>
-                  {conceptB_description ? <Text style={styles.previewText}>{conceptB_description}</Text> : null}
-                  {conceptB_price ? <Text style={styles.previewText}>Price Range: {conceptB_price}</Text> : null}
-                  {conceptB_notes ? <Text style={styles.previewText}>Notes: {conceptB_notes}</Text> : null}
+                  {value.conceptB_description ? <Text style={styles.previewText}>{value.conceptB_description}</Text> : null}
+                  {value.conceptB_price ? <Text style={styles.previewText}>Price Range: {value.conceptB_price}</Text> : null}
+                  {value.conceptB_notes ? <Text style={styles.previewText}>Notes: {value.conceptB_notes}</Text> : null}
                 </View>
               ) : null}
 
-              {(conceptC_description || conceptC_price || conceptC_notes) ? (
+              {(value.conceptC_description || value.conceptC_price || value.conceptC_notes) ? (
                 <View style={styles.previewSection}>
                   <Text style={styles.previewHeading}>Concept C</Text>
-                  {conceptC_description ? <Text style={styles.previewText}>{conceptC_description}</Text> : null}
-                  {conceptC_price ? <Text style={styles.previewText}>Price Range: {conceptC_price}</Text> : null}
-                  {conceptC_notes ? <Text style={styles.previewText}>Notes: {conceptC_notes}</Text> : null}
+                  {value.conceptC_description ? <Text style={styles.previewText}>{value.conceptC_description}</Text> : null}
+                  {value.conceptC_price ? <Text style={styles.previewText}>Price Range: {value.conceptC_price}</Text> : null}
+                  {value.conceptC_notes ? <Text style={styles.previewText}>Notes: {value.conceptC_notes}</Text> : null}
                 </View>
               ) : null}
 
-              {(productMaterialNotes || preferredOptions || avoidConcernItems) ? (
+              {(value.productMaterialNotes || value.preferredOptions || value.avoidConcernItems) ? (
                 <View style={styles.previewSection}>
                   <Text style={styles.previewHeading}>Product / Material Options</Text>
-                  {productMaterialNotes ? <Text style={styles.previewText}>{productMaterialNotes}</Text> : null}
-                  {preferredOptions ? <Text style={styles.previewText}>Preferred: {preferredOptions}</Text> : null}
-                  {avoidConcernItems ? <Text style={styles.previewText}>Avoid: {avoidConcernItems}</Text> : null}
+                  {value.productMaterialNotes ? <Text style={styles.previewText}>{value.productMaterialNotes}</Text> : null}
+                  {value.preferredOptions ? <Text style={styles.previewText}>Preferred: {value.preferredOptions}</Text> : null}
+                  {value.avoidConcernItems ? <Text style={styles.previewText}>Avoid: {value.avoidConcernItems}</Text> : null}
                 </View>
               ) : null}
 
-              {(budgetConversationNotes || basicRange || midRange || premiumRange || pricingRisks) ? (
+              {(value.budgetConversationNotes || value.basicRange || value.midRange || value.premiumRange || value.pricingRisks) ? (
                 <View style={styles.previewSection}>
                   <Text style={styles.previewHeading}>Budget / Pricing Strategy</Text>
-                  {budgetConversationNotes ? <Text style={styles.previewText}>{budgetConversationNotes}</Text> : null}
-                  {basicRange ? <Text style={styles.previewText}>Basic: {basicRange}</Text> : null}
-                  {midRange ? <Text style={styles.previewText}>Mid: {midRange}</Text> : null}
-                  {premiumRange ? <Text style={styles.previewText}>Premium: {premiumRange}</Text> : null}
-                  {pricingRisks ? <Text style={styles.previewText}>Risks: {pricingRisks}</Text> : null}
+                  {value.budgetConversationNotes ? <Text style={styles.previewText}>{value.budgetConversationNotes}</Text> : null}
+                  {value.basicRange ? <Text style={styles.previewText}>Basic: {value.basicRange}</Text> : null}
+                  {value.midRange ? <Text style={styles.previewText}>Mid: {value.midRange}</Text> : null}
+                  {value.premiumRange ? <Text style={styles.previewText}>Premium: {value.premiumRange}</Text> : null}
+                  {value.pricingRisks ? <Text style={styles.previewText}>Risks: {value.pricingRisks}</Text> : null}
                 </View>
               ) : null}
 
-              {(timelineConversationNotes || idealStartWindow || requiredFinishDeadline || possiblePhases || accessDisruptionNotes) ? (
+              {(value.timelineConversationNotes || value.idealStartWindow || value.requiredFinishDeadline || value.possiblePhases || value.accessDisruptionNotes) ? (
                 <View style={styles.previewSection}>
                   <Text style={styles.previewHeading}>Timeline / Phasing</Text>
-                  {timelineConversationNotes ? <Text style={styles.previewText}>{timelineConversationNotes}</Text> : null}
-                  {idealStartWindow ? <Text style={styles.previewText}>Start: {idealStartWindow}</Text> : null}
-                  {requiredFinishDeadline ? <Text style={styles.previewText}>Deadline: {requiredFinishDeadline}</Text> : null}
-                  {possiblePhases ? <Text style={styles.previewText}>Phases: {possiblePhases}</Text> : null}
-                  {accessDisruptionNotes ? <Text style={styles.previewText}>Access/Disruption: {accessDisruptionNotes}</Text> : null}
+                  {value.timelineConversationNotes ? <Text style={styles.previewText}>{value.timelineConversationNotes}</Text> : null}
+                  {value.idealStartWindow ? <Text style={styles.previewText}>Start: {value.idealStartWindow}</Text> : null}
+                  {value.requiredFinishDeadline ? <Text style={styles.previewText}>Deadline: {value.requiredFinishDeadline}</Text> : null}
+                  {value.possiblePhases ? <Text style={styles.previewText}>Phases: {value.possiblePhases}</Text> : null}
+                  {value.accessDisruptionNotes ? <Text style={styles.previewText}>Access/Disruption: {value.accessDisruptionNotes}</Text> : null}
                 </View>
               ) : null}
             </View>
