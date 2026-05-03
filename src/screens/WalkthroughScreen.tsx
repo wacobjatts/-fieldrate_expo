@@ -1,6 +1,6 @@
 // src/screens/WalkthroughScreen.tsx
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
@@ -74,6 +74,8 @@ export default function WalkthroughScreen() {
   const [title, setTitle] = useState("Initial Walkthrough");
   const [activeTag, setActiveTag] = useState<WalkthroughTag>("none");
   const [inputText, setInputText] = useState("");
+  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [isBold, setIsBold] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
   const [contentBlocks, setContentBlocks] = useState<WalkthroughContentBlock[]>([]);
@@ -130,7 +132,37 @@ export default function WalkthroughScreen() {
     );
   }
 
+  function startEditing(id: string, text: string) {
+    if (editingBlockId && editingBlockId !== id) {
+      setContentBlocks((prev) =>
+        prev.map((block) =>
+          block.id === editingBlockId && block.type === "text"
+            ? { ...block, text: editingText }
+            : block
+        )
+      );
+    }
+    setEditingBlockId(id);
+    setEditingText(text);
+  }
+
+  function saveEditing(id: string) {
+    setContentBlocks((prev) =>
+      prev.map((block) =>
+        block.id === id && block.type === "text"
+          ? { ...block, text: editingText }
+          : block
+      )
+    );
+    setEditingBlockId(null);
+    setEditingText("");
+  }
+
   function removeBlock(id: string) {
+    if (editingBlockId === id) {
+      setEditingBlockId(null);
+      setEditingText("");
+    }
     setContentBlocks((prev) => prev.filter((block) => block.id !== id));
   }
 
@@ -146,8 +178,10 @@ export default function WalkthroughScreen() {
     return contentBlocks.filter((block) => (block.tag || "none") === tag).length;
   }
 
-  const groupedNotesText = useMemo(() => {
-    return TAGS.map((tagItem) => {
+  function buildDraftTextForTags(tags: WalkthroughTag[] | "all") {
+    const relevantTags = tags === "all" ? TAGS : TAGS.filter((t) => tags.includes(t.tag));
+
+    const textParts = relevantTags.map((tagItem) => {
       const groupBlocks = contentBlocks.filter((block) => (block.tag || "none") === tagItem.tag);
       if (groupBlocks.length === 0) return "";
       
@@ -156,16 +190,17 @@ export default function WalkthroughScreen() {
         return `• ${text}`;
       });
       return `${tagItem.meaning}:\n${lines.join("\n")}`;
-    })
-      .filter(Boolean)
-      .join("\n\n");
-  }, [contentBlocks]);
+    }).filter(Boolean);
 
-  function sendHighlightsToDraft() {
-    if (!groupedNotesText) return;
+    return textParts.join("\n\n");
+  }
+
+  function insertToDraft(tags: WalkthroughTag[] | "all") {
+    const textToInsert = buildDraftTextForTags(tags);
+    if (!textToInsert) return;
 
     setScopeDraft((prev) =>
-      prev.trim() ? `${prev.trim()}\n\n${groupedNotesText}` : groupedNotesText
+      prev.trim() ? `${prev.trim()}\n\n${textToInsert}` : textToInsert
     );
   }
 
@@ -262,17 +297,36 @@ export default function WalkthroughScreen() {
 
         {contentBlocks.map((block) => {
           const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
-          
+          const isEditing = editingBlockId === block.id;
+
           return (
             <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
               {block.type === "text" ? (
-                <Text style={[
-                  styles.noteText,
-                  formatProps.isBold && { fontWeight: "bold" },
-                  formatProps.isUnderline && { textDecorationLine: "underline" }
-                ]}>
-                  {block.text}
-                </Text>
+                isEditing ? (
+                  <TextInput
+                    style={[
+                      styles.inlineEditInput,
+                      { color: getTagTextColor(block.tag || "none") },
+                      formatProps.isBold && { fontWeight: "bold" },
+                      formatProps.isUnderline && { textDecorationLine: "underline" }
+                    ]}
+                    value={editingText}
+                    onChangeText={setEditingText}
+                    multiline
+                    autoFocus
+                  />
+                ) : (
+                  <Pressable onPress={() => startEditing(block.id, block.text)}>
+                    <Text style={[
+                      styles.noteText,
+                      { color: getTagTextColor(block.tag || "none") },
+                      formatProps.isBold && { fontWeight: "bold" },
+                      formatProps.isUnderline && { textDecorationLine: "underline" }
+                    ]}>
+                      {block.text}
+                    </Text>
+                  </Pressable>
+                )
               ) : (
                 <View>
                   <View style={styles.imagePlaceholder}>
@@ -289,9 +343,16 @@ export default function WalkthroughScreen() {
                 </View>
               )}
 
-              <Pressable onPress={() => removeBlock(block.id)}>
-                <Text style={styles.removeText}>Remove</Text>
-              </Pressable>
+              <View style={styles.itemFooter}>
+                {isEditing && (
+                  <Pressable onPress={() => saveEditing(block.id)}>
+                    <Text style={styles.doneText}>Done</Text>
+                  </Pressable>
+                )}
+                <Pressable onPress={() => removeBlock(block.id)}>
+                  <Text style={styles.removeText}>Remove</Text>
+                </Pressable>
+              </View>
             </View>
           );
         })}
@@ -321,7 +382,9 @@ export default function WalkthroughScreen() {
 
               return (
                 <View key={tagItem.tag} style={styles.groupContainer}>
-                  <Text style={styles.groupTitle}>{tagItem.meaning}</Text>
+                  <Text style={[styles.groupTitle, { color: getTagTextColor(tagItem.tag) }]}>
+                    {tagItem.meaning}
+                  </Text>
                   {groupBlocks.map((block) => {
                     const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
 
@@ -329,6 +392,7 @@ export default function WalkthroughScreen() {
                       <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
                         <Text style={[
                           styles.noteText,
+                          { color: getTagTextColor(block.tag || "none") },
                           formatProps.isBold && { fontWeight: "bold" },
                           formatProps.isUnderline && { textDecorationLine: "underline" }
                         ]}>
@@ -340,12 +404,20 @@ export default function WalkthroughScreen() {
                 </View>
               );
             })}
+
+            <View style={styles.insertActions}>
+              <Pressable style={styles.insertButton} onPress={() => insertToDraft(["blue"])}>
+                <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Insert Blue</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertToDraft(["orange"])}>
+                <Text style={[styles.insertButtonText, { color: getTagTextColor("orange") }]}>Insert Orange</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertToDraft("all")}>
+                <Text style={[styles.insertButtonText, { color: COLORS.text }]}>Insert All</Text>
+              </Pressable>
+            </View>
           </View>
         )}
-
-        <Pressable style={styles.subtleButton} onPress={sendHighlightsToDraft}>
-          <Text style={styles.subtleButtonText}>Send Organized Notes to Draft</Text>
-        </Pressable>
       </FieldRateCard>
 
       <FieldRateCard title="Rough Scope Draft">
@@ -403,6 +475,14 @@ function tagStyle(tag: WalkthroughTag) {
   if (tag === "orange") return styles.orangeTag;
   if (tag === "red") return styles.redTag;
   return styles.normalTag;
+}
+
+function getTagTextColor(tag: WalkthroughTag) {
+  if (tag === "blue") return COLORS.primary;
+  if (tag === "cyan") return COLORS.primary;
+  if (tag === "orange") return COLORS.warning;
+  if (tag === "red") return COLORS.danger;
+  return COLORS.text;
 }
 
 const styles = StyleSheet.create({
@@ -549,6 +629,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
+  inlineEditInput: {
+    fontSize: 13,
+    lineHeight: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 8,
+    backgroundColor: COLORS.background,
+    textAlignVertical: "top",
+  },
+  itemFooter: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 8,
+  },
+  doneText: {
+    color: COLORS.primary,
+    fontSize: 11,
+    fontWeight: "800",
+  },
   normalTag: {
     borderColor: COLORS.border,
   },
@@ -594,8 +696,6 @@ const styles = StyleSheet.create({
     color: COLORS.danger,
     fontSize: 11,
     fontWeight: "800",
-    marginTop: 8,
-    textAlign: "right",
   },
   libraryToggle: {
     color: COLORS.primary,
@@ -625,18 +725,23 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
   },
-  subtleButton: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingVertical: 12,
-    alignItems: "center",
+  insertActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
     marginTop: 12,
   },
-  subtleButtonText: {
-    color: COLORS.primary,
+  insertButton: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: COLORS.surface,
+  },
+  insertButtonText: {
     fontWeight: "800",
-    fontSize: 12,
+    fontSize: 11,
   },
   draftInput: {
     minHeight: 180,
