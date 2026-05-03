@@ -1,7 +1,7 @@
 // src/screens/WalkthroughScreen.tsx
 
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
 import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
@@ -538,9 +538,9 @@ export default function WalkthroughScreen() {
               <Text style={styles.closeCurtainText}>Close Discovery</Text>
             </Pressable>
           </View>
-          <View style={styles.curtainContent}>
+          <ScrollView style={styles.curtainScroll} contentContainerStyle={styles.curtainContent}>
             <ClientDiscoveryCard />
-          </View>
+          </ScrollView>
         </View>
       )}
     </View>
@@ -608,9 +608,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 14,
   },
-  curtainContent: {
+  curtainScroll: {
     flex: 1,
+  },
+  curtainContent: {
     padding: 16,
+    paddingBottom: 40,
   },
   inputGroup: {
     gap: 4,
