@@ -11,31 +11,38 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { COLORS } from "../theme/colors";
 import { DrawerContext } from "../navigation/AppNavigator";
-import { logRepository } from "../data/repositories/logRepository";
-import { summarizeLogsByTask, type TaskRateSummary } from "../domain/performanceMath";
-import type { WorkLog } from "../types/log";
+import { executionTaskRepository } from "../data/repositories/executionTaskRepository";
+import type { ExecutionTask } from "../types/executionTask";
 
 type TaskItem = {
   id: string;
   name: string;
   status: "pending" | "in-progress" | "completed";
-  assignee?: string;
   jobName?: string;
-  mhPerUnit?: number;
+  quantity?: number;
   unit?: string;
 };
 
 export default function TasksScreen() {
   const { openDrawer } = useContext(DrawerContext);
-  const [logs, setLogs] = useState<WorkLog[]>([]);
-  const [summaries, setSummaries] = useState<TaskRateSummary[]>([]);
+
+  const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<"all" | "pending" | "completed">("all");
 
   const loadData = useCallback(async () => {
-    const logData = await logRepository.getAll();
-    setLogs(logData);
-    setSummaries(summarizeLogsByTask(logData));
+    const executionTasks = await executionTaskRepository.getAll();
+
+    const mapped: TaskItem[] = executionTasks.map((task) => ({
+      id: task.id,
+      name: task.name,
+      status: task.status,
+      jobName: task.jobName,
+      quantity: task.quantity,
+      unit: task.unit,
+    }));
+
+    setTasks(mapped);
   }, []);
 
   useFocusEffect(
@@ -50,32 +57,14 @@ export default function TasksScreen() {
     setRefreshing(false);
   }
 
-  // Convert summaries to task items
-  const tasks: TaskItem[] = summaries.map((s, i) => ({
-    id: `task-${i}`,
-    name: s.taskName,
-    status: s.logCount > 2 ? "completed" : s.logCount > 0 ? "in-progress" : "pending",
-    mhPerUnit: s.averageMHPerUnit,
-    unit: s.unit,
-    jobName: logs.find((l) => l.taskName === s.taskName)?.jobName,
-  }));
-
-  // Demo tasks if none exist
-  const displayTasks: TaskItem[] = tasks.length > 0 ? tasks : [
-    { id: "1", name: "Foundation Pour", status: "completed", jobName: "Riverside Tower" },
-    { id: "2", name: "Rebar Installation", status: "in-progress", jobName: "Riverside Tower" },
-    { id: "3", name: "Formwork Setup", status: "pending", jobName: "Harbor Point" },
-    { id: "4", name: "Concrete Finishing", status: "pending", jobName: "Summit Ridge" },
-  ];
-
-  const filteredTasks = displayTasks.filter((task) => {
+  const filteredTasks = tasks.filter((task) => {
     if (filter === "all") return true;
     if (filter === "completed") return task.status === "completed";
     return task.status !== "completed";
   });
 
-  const completedCount = displayTasks.filter((t) => t.status === "completed").length;
-  const pendingCount = displayTasks.filter((t) => t.status !== "completed").length;
+  const completedCount = tasks.filter((t) => t.status === "completed").length;
+  const pendingCount = tasks.filter((t) => t.status !== "completed").length;
 
   return (
     <SafeAreaView style={styles.container} edges={["top"]}>
@@ -99,7 +88,7 @@ export default function TasksScreen() {
         <View style={styles.headerRight} />
       </View>
 
-      {/* Filter Pills */}
+      {/* Filter */}
       <View style={styles.filterRow}>
         <Pressable
           style={[styles.filterPill, filter === "all" && styles.filterPillActive]}
@@ -109,6 +98,7 @@ export default function TasksScreen() {
             All
           </Text>
         </Pressable>
+
         <Pressable
           style={[styles.filterPill, filter === "pending" && styles.filterPillActive]}
           onPress={() => setFilter("pending")}
@@ -117,6 +107,7 @@ export default function TasksScreen() {
             Pending
           </Text>
         </Pressable>
+
         <Pressable
           style={[styles.filterPill, filter === "completed" && styles.filterPillActive]}
           onPress={() => setFilter("completed")}
@@ -141,13 +132,13 @@ export default function TasksScreen() {
         {filteredTasks.map((task) => (
           <View key={task.id} style={styles.taskCard}>
             <View style={styles.taskLeft}>
-              <Pressable style={styles.checkbox}>
+              <View style={styles.checkbox}>
                 {task.status === "completed" && (
                   <View style={styles.checkboxInner}>
                     <Text style={styles.checkmark}>✓</Text>
                   </View>
                 )}
-              </Pressable>
+              </View>
             </View>
 
             <View style={styles.taskContent}>
@@ -159,12 +150,10 @@ export default function TasksScreen() {
               >
                 {task.name}
               </Text>
-              {task.jobName && (
-                <Text style={styles.taskJob}>{task.jobName}</Text>
-              )}
-              {task.mhPerUnit !== undefined && (
+
+              {task.quantity && (
                 <Text style={styles.taskMeta}>
-                  {task.mhPerUnit.toFixed(2)} MH/{task.unit || "unit"}
+                  {task.quantity} {task.unit || ""}
                 </Text>
               )}
             </View>
@@ -195,9 +184,9 @@ export default function TasksScreen() {
         {filteredTasks.length === 0 && (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>☑</Text>
-            <Text style={styles.emptyTitle}>No tasks found</Text>
+            <Text style={styles.emptyTitle}>No tasks yet</Text>
             <Text style={styles.emptyText}>
-              Tasks are created from work logs. Log some work to see tasks here.
+              Add tasks from Task Breakdown to build your field execution list.
             </Text>
           </View>
         )}
@@ -336,11 +325,6 @@ const styles = StyleSheet.create({
   taskNameCompleted: {
     color: COLORS.muted,
     textDecorationLine: "line-through",
-  },
-  taskJob: {
-    color: COLORS.dim,
-    fontSize: 11,
-    marginTop: 2,
   },
   taskMeta: {
     color: COLORS.primary,
