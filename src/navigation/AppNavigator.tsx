@@ -28,6 +28,7 @@ import ScheduleScreen from "../screens/ScheduleScreen";
 import TimeCostScreen from "../screens/TimeCostScreen";
 import ScopeOfWorkScreen from "../screens/ScopeOfWorkScreen";
 import LogWorkScreen from "../screens/LogWorkScreen";
+import WalkthroughScreen from "../screens/WalkthroughScreen";
 import PerformanceScreen from "../screens/PerformanceScreen";
 import EstimateScreen from "../screens/EstimateScreen";
 import ReportsScreen from "../screens/ReportsScreen";
@@ -40,6 +41,7 @@ export type RootStackParamList = {
   "Time & Cost": undefined;
   "Scope of Work": undefined;
   "Log Work": undefined;
+  Walkthrough: undefined;
   Performance: undefined;
   Estimate: undefined;
   Reports: undefined;
@@ -72,6 +74,7 @@ const menuItems = [
   { name: "Scope of Work", icon: "☰" },
   { name: "Reports", icon: "▥" },
   { name: "Log Work", icon: "✎" },
+  { name: "Walkthrough", icon: "▤" },
   { name: "Performance", icon: "↗" },
   { name: "Estimate", icon: "▤" },
 ];
@@ -167,6 +170,7 @@ export function AppNavigator() {
             <Stack.Screen name="Time & Cost" component={TimeCostScreen} />
             <Stack.Screen name="Scope of Work" component={ScopeOfWorkScreen} />
             <Stack.Screen name="Log Work" component={LogWorkScreen} />
+            <Stack.Screen name="Walkthrough" component={WalkthroughScreen} />
             <Stack.Screen name="Performance" component={PerformanceScreen} />
             <Stack.Screen name="Estimate" component={EstimateScreen} />
             <Stack.Screen name="Reports" component={ReportsScreen} />
