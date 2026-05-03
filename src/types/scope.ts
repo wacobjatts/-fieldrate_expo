@@ -1,20 +1,57 @@
+export type ScopeExecutionType = "selfPerform" | "subcontractor";
+export type ScopeMaterialType = "fixed" | "allowance";
+export type ScopeStatus = "draft" | "reviewed" | "approved" | "sent-to-estimate";
+
+export type ScopeComponent = {
+  id: string;
+  description: string;
+  quantity?: number;
+  unit?: string;
+};
+
 export type ScopeItem = {
   id: string;
-  taskName: string;
-  quantity: number;
+  projectId?: string;
 
-  phaseId?: string;
-  phaseName?: string;
-  phaseType?: "base" | "phase" | "changeOrder" | "alternate" | "allowance" | "credit";
-  lineType?: "selfPerform" | "subcontractor" | "allowance" | "credit";
+  title: string;
+  description: string;
 
+  components: ScopeComponent[];
+
+  executionType: ScopeExecutionType;
   subcontractorName?: string;
-  subcontractorTrade?: string;
-  subcontractorBid?: number;
-  subcontractorMarkup?: number;
+  subcontractorNotes?: string;
 
-  rate?: number;
-  difficulty?: number;
-  contingency?: number;
-  manualHours?: number;
+  materialType: ScopeMaterialType;
+  allowanceAmount?: number;
+  allowanceNote?: string;
+
+  inclusions: string[];
+  exclusions: string[];
+  notes?: string;
+
+  status: ScopeStatus;
+
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ScopeDraft = {
+  id: string;
+  projectId?: string;
+  projectName?: string;
+
+  rawNotes?: string;
+  scopeDraftText?: string;
+
+  items: ScopeItem[];
+
+  globalInclusions: string[];
+  globalExclusions: string[];
+  globalNotes?: string;
+
+  status: ScopeStatus;
+
+  createdAt: string;
+  updatedAt: string;
 };
