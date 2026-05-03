@@ -114,22 +114,24 @@ export default function WalkthroughScreen() {
     walkthroughRepository.save(draft);
   }, [projectName, title, contentBlocks, scopeDraft, snapshots]);
 
+  function saveSnapshot() {
+    if (contentBlocks.length === 0 && !scopeDraft.trim()) return;
+
+    setSnapshots((prev) =>
+      [createSnapshot(projectName, title, contentBlocks, scopeDraft), ...prev].slice(0, 12)
+    );
+  }
+
   function addTextBlock() {
     const clean = inputText.trim();
     if (!clean) return;
 
     setContentBlocks((prev) => [...prev, createTextBlock(clean, activeTag, isBold, isUnderline)]);
-    setSnapshots((prev) =>
-      [createSnapshot(projectName, title, contentBlocks, scopeDraft), ...prev].slice(0, 12)
-    );
     setInputText("");
   }
 
   function addImagePlaceholder() {
     setContentBlocks((prev) => [...prev, createImageBlock(activeTag)]);
-    setSnapshots((prev) =>
-      [createSnapshot(projectName, title, contentBlocks, scopeDraft), ...prev].slice(0, 12)
-    );
   }
 
   function startEditing(id: string, text: string) {
@@ -159,6 +161,7 @@ export default function WalkthroughScreen() {
   }
 
   function removeBlock(id: string) {
+    saveSnapshot();
     if (editingBlockId === id) {
       setEditingBlockId(null);
       setEditingText("");
@@ -207,6 +210,8 @@ export default function WalkthroughScreen() {
   function restoreSnapshot(snapshotId: string) {
     const snapshot = snapshots.find((item) => item.id === snapshotId);
     if (!snapshot) return;
+
+    saveSnapshot();
 
     setProjectName(snapshot.projectName);
     setTitle(snapshot.title);
