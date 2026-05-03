@@ -452,10 +452,16 @@ export default function WalkthroughScreen() {
 
             <View style={styles.insertActions}>
               <Pressable style={styles.insertButton} onPress={() => insertToDraft(["blue"])}>
-                <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Insert Blue</Text>
+                <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Insert Blue Items</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertToDraft(["cyan"])}>
+                <Text style={[styles.insertButtonText, { color: getTagTextColor("cyan") }]}>Insert Cyan Items</Text>
               </Pressable>
               <Pressable style={styles.insertButton} onPress={() => insertToDraft(["orange"])}>
-                <Text style={[styles.insertButtonText, { color: getTagTextColor("orange") }]}>Insert Orange</Text>
+                <Text style={[styles.insertButtonText, { color: getTagTextColor("orange") }]}>Insert Orange Items</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertToDraft(["red"])}>
+                <Text style={[styles.insertButtonText, { color: getTagTextColor("red") }]}>Insert Red Items</Text>
               </Pressable>
               <Pressable style={styles.insertButton} onPress={() => insertToDraft("all")}>
                 <Text style={[styles.insertButtonText, { color: COLORS.text }]}>Insert All</Text>
