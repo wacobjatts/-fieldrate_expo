@@ -2,8 +2,8 @@
 
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -12,6 +12,7 @@ import {
 
 import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
+import { executionTaskRepository } from "../data/repositories/executionTaskRepository";
 import { COLORS } from "../theme/colors";
 
 type TaskLine = {
@@ -73,6 +74,54 @@ export default function TaskBreakdownScreen() {
     ]);
   }
 
+  async function addTasksToProject(selectedTasks = tasks) {
+    const cleanTasks = selectedTasks
+      .filter((task) => task.name.trim())
+      .map((task) => ({
+        id: `exec-${Date.now()}-${task.id}`,
+        name: task.name.trim(),
+        status: "pending" as const,
+        quantity: Number(task.qty) || undefined,
+        unit: task.unit || undefined,
+        source: "task-breakdown" as const,
+        createdAt: new Date().toISOString(),
+      }));
+
+    if (cleanTasks.length === 0) {
+      Alert.alert("No Tasks", "Add at least one task name first.");
+      return;
+    }
+
+    await executionTaskRepository.saveMany(cleanTasks);
+
+    Alert.alert(
+      "Added to Project Tasks",
+      `${cleanTasks.length} task(s) added to the field execution list.`
+    );
+  }
+
+  function confirmAddOne(task: TaskLine) {
+    Alert.alert(
+      "Add to Project Tasks",
+      `Add "${task.name || "Untitled Task"}" to the field task list?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Add", onPress: () => addTasksToProject([task]) },
+      ]
+    );
+  }
+
+  function confirmAddAll() {
+    Alert.alert(
+      "Add All Tasks",
+      "Add all task breakdown lines to the field execution task list?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Add All", onPress: () => addTasksToProject(tasks) },
+      ]
+    );
+  }
+
   const totals = useMemo(() => {
     return tasks.reduce(
       (acc, task) => {
@@ -97,11 +146,14 @@ export default function TaskBreakdownScreen() {
 
   return (
     <FieldRateScreen title="Task Breakdown" subtitle="Labor forecast by task">
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.screenContent}>
         <FieldRateCard title="Forecast Summary">
           <View style={styles.summaryRow}>
             <Summary label="Predicted" value={`${totals.mh.toFixed(1)} MH`} />
-            <Summary label="Duration" value={`${totals.duration.toFixed(1)} hrs`} />
+            <Summary
+              label="Duration"
+              value={`${totals.duration.toFixed(1)} hrs`}
+            />
             <Summary label="Labor" value={`$${totals.laborCost.toFixed(0)}`} />
           </View>
         </FieldRateCard>
@@ -153,19 +205,24 @@ export default function TaskBreakdownScreen() {
                     value={task.unit}
                     onChange={(text) => updateTask(task.id, { unit: text })}
                   />
-                  <InputBox
-                    label="MH / Unit"
-                    value={task.mhPerUnit}
-                    onChange={(text) => updateTask(task.id, { mhPerUnit: text })}
-                  />
                 </View>
 
                 <View style={styles.grid}>
+                  <InputBox
+                    label="MH / Unit"
+                    value={task.mhPerUnit}
+                    onChange={(text) =>
+                      updateTask(task.id, { mhPerUnit: text })
+                    }
+                  />
                   <InputBox
                     label="Workers"
                     value={task.workers}
                     onChange={(text) => updateTask(task.id, { workers: text })}
                   />
+                </View>
+
+                <View style={styles.grid}>
                   <InputBox
                     label="Avg $ / HR"
                     value={task.blendedRate}
@@ -176,23 +233,29 @@ export default function TaskBreakdownScreen() {
                 </View>
 
                 <View style={styles.resultRow}>
-                  <Result label="Predicted" value={`${predictedMH.toFixed(1)} MH`} />
+                  <Result
+                    label="Predicted"
+                    value={`${predictedMH.toFixed(1)} MH`}
+                  />
                   <Result label="Duration" value={`${duration.toFixed(1)} hrs`} />
                   <Result label="Labor" value={`$${laborCost.toFixed(0)}`} />
                 </View>
 
-                <Pressable style={styles.exportButton}>
-                  <Text style={styles.exportText}>Add to Estimate</Text>
+                <Pressable
+                  style={styles.exportButton}
+                  onPress={() => confirmAddOne(task)}
+                >
+                  <Text style={styles.exportText}>Add to Project Tasks</Text>
                 </Pressable>
               </View>
             );
           })}
         </FieldRateCard>
 
-        <Pressable style={styles.primaryButton}>
-          <Text style={styles.primaryText}>Add All Tasks to Estimate</Text>
+        <Pressable style={styles.primaryButton} onPress={confirmAddAll}>
+          <Text style={styles.primaryText}>Add All Tasks to Project</Text>
         </Pressable>
-      </ScrollView>
+      </View>
     </FieldRateScreen>
   );
 }
@@ -239,8 +302,8 @@ function Result({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
-  scrollContent: {
-    paddingBottom: 120,
+  screenContent: {
+    gap: 12,
   },
   summaryRow: {
     flexDirection: "row",
@@ -249,8 +312,6 @@ const styles = StyleSheet.create({
   summaryBox: {
     flex: 1,
     alignItems: "center",
-    borderRightWidth: 1,
-    borderRightColor: COLORS.border,
   },
   summaryValue: {
     color: COLORS.primary,
