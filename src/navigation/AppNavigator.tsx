@@ -9,6 +9,7 @@ import {
   Animated,
   Dimensions,
   StatusBar,
+  ScrollView,
 } from "react-native";
 
 import {
@@ -96,34 +97,39 @@ function DrawerContent({
         <Text style={styles.brandName}>FieldRate</Text>
       </View>
 
-      <View style={styles.menuSection}>
-        {menuItems.map((item) => {
-          const isActive = activeRoute === item.name;
+      <ScrollView 
+        contentContainerStyle={styles.menuScrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.menuSection}>
+          {menuItems.map((item) => {
+            const isActive = activeRoute === item.name;
 
-          return (
-            <Pressable
-              key={item.name}
-              style={[styles.menuItem, isActive && styles.menuItemActive]}
-              onPress={() => {
-                if (navigationRef.isReady()) {
-                  navigationRef.navigate(item.name as any);
-                }
-                closeDrawer();
-              }}
-            >
-              <Text style={styles.icon}>{item.icon}</Text>
-              <Text
-                style={[
-                  styles.menuText,
-                  isActive && styles.menuTextActive,
-                ]}
+            return (
+              <Pressable
+                key={item.name}
+                style={[styles.menuItem, isActive && styles.menuItemActive]}
+                onPress={() => {
+                  if (navigationRef.isReady()) {
+                    navigationRef.navigate(item.name as any);
+                  }
+                  closeDrawer();
+                }}
               >
-                {item.name}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+                <Text style={styles.icon}>{item.icon}</Text>
+                <Text
+                  style={[
+                    styles.menuText,
+                    isActive && styles.menuTextActive,
+                  ]}
+                >
+                  {item.name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -234,6 +240,9 @@ const styles = StyleSheet.create({
   brandName: {
     color: COLORS.text,
     fontSize: 14,
+  },
+  menuScrollContent: {
+    paddingBottom: 60,
   },
   menuSection: {
     gap: 12,
