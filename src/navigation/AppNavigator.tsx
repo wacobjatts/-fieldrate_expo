@@ -32,6 +32,7 @@ import WalkthroughScreen from "../screens/WalkthroughScreen";
 import PerformanceScreen from "../screens/PerformanceScreen";
 import EstimateScreen from "../screens/EstimateScreen";
 import ReportsScreen from "../screens/ReportsScreen";
+import RichTextSpike from "../screens/RichTextSpike";
 
 export type RootStackParamList = {
   Dashboard: undefined;
@@ -45,6 +46,7 @@ export type RootStackParamList = {
   Performance: undefined;
   Estimate: undefined;
   Reports: undefined;
+  "Rich Text Spike": undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -77,6 +79,7 @@ const menuItems = [
   { name: "Walkthrough", icon: "▤" },
   { name: "Performance", icon: "↗" },
   { name: "Estimate", icon: "▤" },
+  { name: "Rich Text Spike", icon: "✦" },
 ];
 
 function DrawerContent({
@@ -174,6 +177,7 @@ export function AppNavigator() {
             <Stack.Screen name="Performance" component={PerformanceScreen} />
             <Stack.Screen name="Estimate" component={EstimateScreen} />
             <Stack.Screen name="Reports" component={ReportsScreen} />
+            <Stack.Screen name="Rich Text Spike" component={RichTextSpike} />
           </Stack.Navigator>
         </NavigationContainer>
 
