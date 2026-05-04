@@ -20,7 +20,7 @@ const TAGS: { tag: WalkthroughTag; label: string; meaning: string }[] = [
   { tag: "blue", label: "Blue", meaning: "Self / definite work" },
   { tag: "cyan", label: "Cyan", meaning: "Sub / trade item" },
   { tag: "orange", label: "Orange", meaning: "Maybe / allowance / pending" },
-  { tag: "red", label: "Red", meaning: "Issue / risk / critical" },
+  { tag: "red", label: "Red", meaning: "Issues / Risks" },
 ];
 
 const defaultClientDiscovery: WalkthroughClientDiscovery = {
@@ -60,7 +60,7 @@ function createTextBlock(
   isUnderline: boolean
 ): WalkthroughContentBlock {
   return {
-    id: Date.now().toString(),
+    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
     type: "text",
     text,
     tag,
@@ -155,10 +155,19 @@ export default function WalkthroughScreen() {
   }
 
   function addTextBlock() {
-    const clean = inputText.trim();
-    if (!clean) return;
+    const lines = inputText.split("\n");
+    const newBlocks: WalkthroughContentBlock[] = [];
 
-    setContentBlocks((prev) => [...prev, createTextBlock(clean, activeTag, isBold, isUnderline)]);
+    for (let i = 0; i < lines.length; i++) {
+      const cleanLine = lines[i].trim();
+      if (cleanLine) {
+        newBlocks.push(createTextBlock(cleanLine, activeTag, isBold, isUnderline));
+      }
+    }
+
+    if (newBlocks.length === 0) return;
+
+    setContentBlocks((prev) => [...prev, ...newBlocks]);
     setInputText("");
   }
 
@@ -416,7 +425,12 @@ export default function WalkthroughScreen() {
           </View>
 
           <TextInput
-            style={styles.roughInput}
+            style={[
+              styles.roughInput,
+              { color: getTagTextColor(activeTag), borderColor: getTagBorderColor(activeTag) },
+              isBold && { fontWeight: "bold" },
+              isUnderline && { textDecorationLine: "underline" }
+            ]}
             multiline
             placeholder="Type rough walkthrough notes..."
             placeholderTextColor={COLORS.dim}
@@ -679,6 +693,14 @@ function getTagTextColor(tag: WalkthroughTag) {
   if (tag === "orange") return COLORS.warning;
   if (tag === "red") return COLORS.danger;
   return COLORS.text;
+}
+
+function getTagBorderColor(tag: WalkthroughTag) {
+  if (tag === "blue") return COLORS.primary;
+  if (tag === "cyan") return COLORS.primary;
+  if (tag === "orange") return COLORS.warning;
+  if (tag === "red") return COLORS.danger;
+  return COLORS.border;
 }
 
 const styles = StyleSheet.create({
