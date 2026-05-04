@@ -66,6 +66,7 @@ export type WalkthroughDraft = {
   snapshots: WalkthroughSnapshot[];
   clientDiscovery?: WalkthroughClientDiscovery;
   roughRichText?: any;
+  scopeHandoffDraft?: string;
   createdAt: string;
   updatedAt: string;
 };
