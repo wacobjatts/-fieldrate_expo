@@ -86,7 +86,8 @@ function createSnapshot(
   projectName: string,
   title: string,
   contentBlocks: WalkthroughContentBlock[],
-  scopeDraft: string
+  scopeDraft: string,
+  roughRichText?: any
 ) {
   return {
     id: `snap-${Date.now()}`,
@@ -94,6 +95,7 @@ function createSnapshot(
     projectName,
     contentBlocks,
     scopeDraft,
+    roughRichText,
     createdAt: now(),
   };
 }
@@ -127,6 +129,7 @@ export default function WalkthroughScreen() {
       setScopeDraft(saved.scopeDraft || "");
       setSnapshots(saved.snapshots || []);
       setClientDiscovery(saved.clientDiscovery || defaultClientDiscovery);
+      setRoughRichText(saved.roughRichText || null);
     }
 
     loadSaved();
@@ -141,18 +144,19 @@ export default function WalkthroughScreen() {
       scopeDraft,
       snapshots,
       clientDiscovery,
+      roughRichText,
       createdAt: now(),
       updatedAt: now(),
     };
 
     walkthroughRepository.save(draft);
-  }, [projectName, title, contentBlocks, scopeDraft, snapshots, clientDiscovery]);
+  }, [projectName, title, contentBlocks, scopeDraft, snapshots, clientDiscovery, roughRichText]);
 
   function saveSnapshot() {
-    if (contentBlocks.length === 0 && !scopeDraft.trim()) return;
+    if (contentBlocks.length === 0 && !scopeDraft.trim() && !roughRichText) return;
 
     setSnapshots((prev) =>
-      [createSnapshot(projectName, title, contentBlocks, scopeDraft), ...prev].slice(0, 12)
+      [createSnapshot(projectName, title, contentBlocks, scopeDraft, roughRichText), ...prev].slice(0, 12)
     );
   }
 
@@ -276,6 +280,41 @@ export default function WalkthroughScreen() {
     );
   }
 
+  function extractPlainTextFromRichText(json: any): string {
+    if (!json || !json.content) return "";
+    
+    return json.content.map((node: any) => {
+      if (node.type === "paragraph" && node.content) {
+        return node.content.map((textNode: any) => textNode.text || "").join("");
+      }
+      return "";
+    }).filter(Boolean).join("\n\n");
+  }
+
+  function insertRichNotesToDraft() {
+    if (!roughRichText) return;
+    
+    const plainText = extractPlainTextFromRichText(roughRichText);
+    if (!plainText.trim()) return;
+
+    setScopeDraft((prev) =>
+      prev.trim() ? `${prev.trim()}\n\n${plainText}` : plainText
+    );
+  }
+
+  function clearScopeDraft() {
+    saveSnapshot();
+    setScopeDraft("");
+  }
+
+  function saveWholePageAndStartFresh() {
+    saveSnapshot();
+    setContentBlocks([]);
+    setScopeDraft("");
+    setRoughRichText(null);
+    setTitle("Initial Walkthrough");
+  }
+
   function buildClientDiscoveryText(section: "concepts" | "products" | "budget" | "timeline" | "all") {
     const parts: string[] = [];
 
@@ -353,6 +392,7 @@ export default function WalkthroughScreen() {
     setTitle(snapshot.title);
     setContentBlocks(snapshot.contentBlocks);
     setScopeDraft(snapshot.scopeDraft);
+    setRoughRichText(snapshot.roughRichText || null);
   }
 
   return (
@@ -385,7 +425,7 @@ export default function WalkthroughScreen() {
 
         <FieldRateCard title="Rough Notes">
           <Text style={styles.helper}>
-            Capture messy jobsite notes. Photos are inline blocks. Colors are field triage only.
+            Capture messy jobsite notes. Select text to format colors for field triage.
           </Text>
           <WalkthroughRichTextEditor value={roughRichText} onChange={setRoughRichText} />
         </FieldRateCard>
@@ -543,22 +583,31 @@ export default function WalkthroughScreen() {
 
         <FieldRateCard title="Rough Scope Draft">
           <View style={styles.discoveryInsertSection}>
-            <Text style={styles.label}>Insert From Client Discovery</Text>
+            <Text style={styles.label}>Draft Actions</Text>
             <View style={styles.insertActions}>
+              <Pressable style={styles.insertButton} onPress={insertRichNotesToDraft}>
+                <Text style={styles.insertButtonText}>Insert Rough Notes</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("all")}>
+                <Text style={styles.insertButtonText}>Insert All Discovery</Text>
+              </Pressable>
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("concepts")}>
                 <Text style={styles.insertButtonText}>Insert Concepts</Text>
               </Pressable>
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("products")}>
-                <Text style={styles.insertButtonText}>Insert Products / Materials</Text>
+                <Text style={styles.insertButtonText}>Insert Products</Text>
               </Pressable>
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("budget")}>
-                <Text style={styles.insertButtonText}>Insert Budget Strategy</Text>
+                <Text style={styles.insertButtonText}>Insert Budget</Text>
               </Pressable>
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("timeline")}>
                 <Text style={styles.insertButtonText}>Insert Timeline</Text>
               </Pressable>
-              <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("all")}>
-                <Text style={styles.insertButtonText}>Insert All Discovery</Text>
+              <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={clearScopeDraft}>
+                <Text style={[styles.insertButtonText, styles.dangerText]}>Clear Draft</Text>
+              </Pressable>
+              <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={saveWholePageAndStartFresh}>
+                <Text style={[styles.insertButtonText, styles.dangerText]}>Save Version & Start Fresh</Text>
               </Pressable>
             </View>
           </View>
@@ -975,6 +1024,12 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     fontSize: 11,
     color: COLORS.text,
+  },
+  dangerBtn: {
+    borderColor: COLORS.danger,
+  },
+  dangerText: {
+    color: COLORS.danger,
   },
   draftInput: {
     minHeight: 180,
