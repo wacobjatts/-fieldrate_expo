@@ -3,25 +3,42 @@
 
 import React, { useState } from "react";
 import { StyleSheet, Text, View, Pressable, ScrollView, SafeAreaView } from "react-native";
-import { RichText, useEditorBridge } from "@10play/tentap-editor";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import TextStyle from "@tiptap/extension-text-style";
+import Color from "@tiptap/extension-color";
+import Underline from "@tiptap/extension-underline";
 import { COLORS } from "../theme/colors";
 
 export default function RichTextSpike() {
   const [jsonOutput, setJsonOutput] = useState<any>(null);
 
-  const editor = useEditorBridge({
-    autofocus: true,
-    avoidIosKeyboard: true,
-    onChange: () => {
-      editor.getJSON().then((json: any) => {
-        setJsonOutput(json);
-      });
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      TextStyle,
+      Color,
+      Underline,
+    ],
+    content: '<p>Start typing rich text here...</p>',
+    onUpdate: ({ editor }) => {
+      setJsonOutput(editor.getJSON());
     },
   });
 
   const applyColor = (colorHex: string) => {
-    // Assumes TextColor extension is available/configured in the bridge
-    editor.setColor(colorHex);
+    if (!editor) return;
+    editor.chain().focus().setColor(colorHex).run();
+  };
+
+  const toggleBold = () => {
+    if (!editor) return;
+    editor.chain().focus().toggleBold().run();
+  };
+
+  const toggleUnderline = () => {
+    if (!editor) return;
+    editor.chain().focus().toggleUnderline().run();
   };
 
   const renderNode = (node: any, index: number) => {
@@ -68,13 +85,13 @@ export default function RichTextSpike() {
         <View style={styles.toolbar}>
           <Pressable
             style={styles.formatBtn}
-            onPress={() => editor.toggleBold()}
+            onPress={toggleBold}
           >
             <Text style={[styles.formatText, { fontWeight: "bold" }]}>B</Text>
           </Pressable>
           <Pressable
             style={styles.formatBtn}
-            onPress={() => editor.toggleUnderline()}
+            onPress={toggleUnderline}
           >
             <Text style={[styles.formatText, { textDecorationLine: "underline" }]}>U</Text>
           </Pressable>
@@ -100,7 +117,7 @@ export default function RichTextSpike() {
         </View>
 
         <View style={styles.editorContainer}>
-          <RichText editor={editor} />
+          <EditorContent editor={editor} />
         </View>
 
         <Text style={styles.sectionTitle}>Native Read-Only Preview</Text>
