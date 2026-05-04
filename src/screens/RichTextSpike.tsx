@@ -3,7 +3,7 @@
 
 import React, { useState } from "react";
 import { StyleSheet, Text, View, Pressable, ScrollView, SafeAreaView } from "react-native";
-import { RichText, useEditorBridge } from "@10tap/editor";
+import { RichText, useEditorBridge } from "@10play/tentap-editor";
 import { COLORS } from "../theme/colors";
 
 export default function RichTextSpike() {
@@ -13,7 +13,7 @@ export default function RichTextSpike() {
     autofocus: true,
     avoidIosKeyboard: true,
     onChange: () => {
-      editor.getJSON().then((json) => {
+      editor.getJSON().then((json: any) => {
         setJsonOutput(json);
       });
     },
