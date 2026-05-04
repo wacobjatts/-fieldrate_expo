@@ -12,6 +12,7 @@ import { COLORS } from "../theme/colors";
 import type {
   WalkthroughClientDiscovery,
   WalkthroughDraft,
+  WalkthroughHandoffEntry,
   WalkthroughTag,
 } from "../types/walkthrough";
 
@@ -134,8 +135,8 @@ export default function WalkthroughScreen() {
   const [projectName, setProjectName] = useState("Untitled Project");
   const [title, setTitle] = useState("Initial Walkthrough");
   const [scopeDraft, setScopeDraft] = useState("");
-  const [scopeHandoffDraft, setScopeHandoffDraft] = useState("");
-  const [selectedScopeText, setSelectedScopeText] = useState("");
+  const [scopeHandoffQueue, setScopeHandoffQueue] = useState<WalkthroughHandoffEntry[]>([]);
+  const [scopeReadyForImport, setScopeReadyForImport] = useState("");
   const [snapshots, setSnapshots] = useState<WalkthroughDraft["snapshots"]>([]);
   const [reviewOpen, setReviewOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -152,7 +153,8 @@ export default function WalkthroughScreen() {
       setProjectName(saved.projectName || "Untitled Project");
       setTitle(saved.title || "Initial Walkthrough");
       setScopeDraft(saved.scopeDraft || "");
-      setScopeHandoffDraft(saved.scopeHandoffDraft || "");
+      setScopeHandoffQueue(saved.scopeHandoffQueue || []);
+      setScopeReadyForImport(saved.scopeReadyForImport || "");
       setSnapshots(saved.snapshots || []);
       setClientDiscovery(saved.clientDiscovery || defaultClientDiscovery);
       setRoughRichText(saved.roughRichText || null);
@@ -166,9 +168,10 @@ export default function WalkthroughScreen() {
       id: "current-walkthrough-draft",
       projectName,
       title,
-      contentBlocks: [], // Legacy, keep empty
+      contentBlocks: [], 
       scopeDraft,
-      scopeHandoffDraft,
+      scopeHandoffQueue,
+      scopeReadyForImport,
       snapshots,
       clientDiscovery,
       roughRichText,
@@ -177,7 +180,16 @@ export default function WalkthroughScreen() {
     };
 
     walkthroughRepository.save(draft);
-  }, [projectName, title, scopeDraft, scopeHandoffDraft, snapshots, clientDiscovery, roughRichText]);
+  }, [
+    projectName, 
+    title, 
+    scopeDraft, 
+    scopeHandoffQueue, 
+    scopeReadyForImport, 
+    snapshots, 
+    clientDiscovery, 
+    roughRichText
+  ]);
 
   function saveSnapshot() {
     if (!scopeDraft.trim() && !roughRichText) return;
@@ -328,22 +340,59 @@ export default function WalkthroughScreen() {
     );
   }
 
-  function sendEntireDraftToScope() {
+  function sendSectionToQueue(tag: WalkthroughTag, title: string) {
+    const plainText = extractPlainTextByTag(roughRichText, tag);
+    if (!plainText.trim()) return;
+    setScopeHandoffQueue((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+        title,
+        body: plainText.trim(),
+        createdAt: now(),
+      },
+    ]);
+  }
+
+  function sendDiscoveryToQueue() {
+    const plainText = buildClientDiscoveryText("all");
+    if (!plainText.trim()) return;
+    setScopeHandoffQueue((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+        title: "Client Discovery",
+        body: plainText.trim(),
+        createdAt: now(),
+      },
+    ]);
+  }
+
+  function sendEntireDraftToQueue() {
     if (!scopeDraft.trim()) return;
-    setScopeHandoffDraft(prev => prev.trim() ? `${prev.trim()}\n\n${scopeDraft}` : scopeDraft);
+    setScopeHandoffQueue((prev) => [
+      ...prev,
+      {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+        title: "Entire Scope Draft",
+        body: scopeDraft.trim(),
+        createdAt: now(),
+      },
+    ]);
   }
 
-  function sendSelectedToScope() {
-    if (!selectedScopeText.trim()) return;
-    setScopeHandoffDraft(prev => prev.trim() ? `${prev.trim()}\n\n${selectedScopeText}` : selectedScopeText);
-  }
-
-  function clearSelection() {
-    setSelectedScopeText("");
+  function sendQueueToScope() {
+    if (scopeHandoffQueue.length === 0) return;
+    setScopeReadyForImport("Ready for Scope import");
   }
 
   function clearHandoffQueue() {
-    setScopeHandoffDraft("");
+    setScopeHandoffQueue([]);
+    setScopeReadyForImport("");
+  }
+
+  function deleteQueueEntry(id: string) {
+    setScopeHandoffQueue((prev) => prev.filter((item) => item.id !== id));
   }
 
   function restoreSnapshot(snapshotId: string) {
@@ -475,7 +524,7 @@ export default function WalkthroughScreen() {
         <FieldRateCard title="Rough Scope Draft">
           <View style={styles.discoveryInsertSection}>
             
-            <Text style={styles.label}>Insert Review Items</Text>
+            <Text style={styles.label}>Insert Review Items to Draft</Text>
             <View style={styles.insertActions}>
               <Pressable style={styles.insertButton} onPress={() => insertRichNotesToDraft("blue")}>
                   <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Insert Blue Items</Text>
@@ -491,7 +540,7 @@ export default function WalkthroughScreen() {
               </Pressable>
             </View>
 
-            <Text style={[styles.label, {marginTop: 16}]}>Insert From Client Discovery</Text>
+            <Text style={[styles.label, {marginTop: 16}]}>Insert From Client Discovery to Draft</Text>
             <View style={styles.insertActions}>
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("concepts")}>
                 <Text style={styles.insertButtonText}>Insert Concepts</Text>
@@ -534,26 +583,25 @@ export default function WalkthroughScreen() {
           />
 
           <View style={styles.discoveryInsertSection}>
-            <Text style={[styles.label, {marginTop: 16}]}>Selected Text for Scope</Text>
-            <TextInput
-              style={[styles.draftInput, { minHeight: 80 }]}
-              multiline
-              placeholder="Paste or type specific text to send..."
-              placeholderTextColor={COLORS.dim}
-              value={selectedScopeText}
-              onChangeText={setSelectedScopeText}
-            />
-
-            <Text style={[styles.label, {marginTop: 16}]}>Send to Office / Scope</Text>
+            <Text style={[styles.label, {marginTop: 16}]}>Send to Handoff Queue</Text>
             <View style={styles.insertActions}>
-              <Pressable style={styles.insertButton} onPress={sendEntireDraftToScope}>
-                  <Text style={styles.insertButtonText}>Send Entire Draft to Scope</Text>
+              <Pressable style={styles.insertButton} onPress={() => sendSectionToQueue("blue", "Blue / Self Perform")}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Send Blue / Self Perform to Queue</Text>
               </Pressable>
-              <Pressable style={styles.insertButton} onPress={sendSelectedToScope}>
-                  <Text style={styles.insertButtonText}>Send Selected Section to Scope</Text>
+              <Pressable style={styles.insertButton} onPress={() => sendSectionToQueue("pink", "Pink / Subcontractor")}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("pink") }]}>Send Pink / Subcontractor to Queue</Text>
               </Pressable>
-              <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={clearSelection}>
-                  <Text style={[styles.insertButtonText, styles.dangerText]}>Clear Selection</Text>
+              <Pressable style={styles.insertButton} onPress={() => sendSectionToQueue("orange", "Orange / Allowance")}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("orange") }]}>Send Orange / Allowance to Queue</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => sendSectionToQueue("red", "Red / Issues")}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("red") }]}>Send Red / Issues to Queue</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={sendDiscoveryToQueue}>
+                  <Text style={styles.insertButtonText}>Send Client Discovery to Queue</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={sendEntireDraftToQueue}>
+                  <Text style={styles.insertButtonText}>Send Entire Draft to Queue</Text>
               </Pressable>
             </View>
           </View>
@@ -567,17 +615,42 @@ export default function WalkthroughScreen() {
         </FieldRateCard>
 
         <FieldRateCard title="Scope Handoff Queue">
-          {scopeHandoffDraft ? (
-            <Text style={styles.previewText}>{scopeHandoffDraft}</Text>
+          {scopeHandoffQueue.length === 0 ? (
+            <Text style={styles.emptyText}>Nothing sent to scope queue yet.</Text>
           ) : (
-            <Text style={styles.emptyText}>Nothing sent to scope yet.</Text>
+            <View style={styles.noteList}>
+              {scopeHandoffQueue.map((entry) => (
+                <View key={entry.id} style={styles.queueItem}>
+                  <View style={styles.queueHeader}>
+                    <View style={styles.historyTitleContent}>
+                      <Text style={styles.historyTitle} numberOfLines={1}>{entry.title}</Text>
+                      <Text style={styles.historyMeta}>
+                        {new Date(entry.createdAt).toLocaleString()}
+                      </Text>
+                    </View>
+                    <Pressable onPress={() => deleteQueueEntry(entry.id)}>
+                      <Text style={[styles.restoreText, styles.dangerText]}>Delete</Text>
+                    </Pressable>
+                  </View>
+                  <Text style={styles.queueBody}>{entry.body}</Text>
+                </View>
+              ))}
+            </View>
           )}
-          {scopeHandoffDraft ? (
+
+          {scopeHandoffQueue.length > 0 && (
              <View style={[styles.insertActions, {marginTop: 16}]}>
+                <Pressable style={styles.insertButton} onPress={sendQueueToScope}>
+                  <Text style={[styles.insertButtonText, { color: COLORS.primary }]}>Send Queue to Scope</Text>
+                </Pressable>
                 <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={clearHandoffQueue}>
                   <Text style={[styles.insertButtonText, styles.dangerText]}>Clear Handoff Queue</Text>
                 </Pressable>
              </View>
+          )}
+
+          {scopeReadyForImport ? (
+            <Text style={[styles.previewTitle, {marginTop: 16, color: COLORS.primary}]}>✓ {scopeReadyForImport}</Text>
           ) : null}
         </FieldRateCard>
 
@@ -877,5 +950,24 @@ const styles = StyleSheet.create({
     marginBottom: 0,
     lineHeight: 20,
     fontSize: 14,
+  },
+  queueItem: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: COLORS.background,
+    marginBottom: 8,
+  },
+  queueHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  queueBody: {
+    color: COLORS.text,
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
