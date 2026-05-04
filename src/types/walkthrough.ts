@@ -1,6 +1,6 @@
 // src/types/walkthrough.ts
 
-export type WalkthroughTag = "none" | "blue" | "cyan" | "orange" | "red";
+export type WalkthroughTag = "none" | "blue" | "pink" | "orange" | "red";
 
 export type WalkthroughContentBlock =
   | {
