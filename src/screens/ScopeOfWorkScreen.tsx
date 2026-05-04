@@ -1,13 +1,15 @@
 // src/screens/ScopeOfWorkScreen.tsx
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
 import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
 import { scopeRepository } from "../data/repositories/scopeRepository";
+import { walkthroughRepository } from "../data/repositories/walkthroughRepository";
 import { COLORS } from "../theme/colors";
-import type { ScopeComponent, ScopeDraft, ScopeItem } from "../types/scope";
+import type { ScopeComponent, ScopeDraft, ScopeItem, ScopeExecutionType, ScopeMaterialType } from "../types/scope";
+import type { WalkthroughHandoffEntry } from "../types/walkthrough";
 
 function now() {
   return new Date().toISOString();
@@ -29,6 +31,64 @@ function createScopeItem(): ScopeItem {
   };
 }
 
+function createScopeItemFromHandoff(entry: WalkthroughHandoffEntry): ScopeItem {
+  const titleLower = entry.title.toLowerCase();
+  let executionType: ScopeExecutionType = "selfPerform";
+  let materialType: ScopeMaterialType = "fixed";
+  let subcontractorNotes = "";
+  let allowanceNote = "";
+  let notes = "";
+  let scopeTitle = entry.title;
+
+  if (titleLower.includes("self perform") || titleLower.includes("blue")) {
+    executionType = "selfPerform";
+    materialType = "fixed";
+  } else if (titleLower.includes("subcontractor") || titleLower.includes("pink")) {
+    executionType = "subcontractor";
+    materialType = "fixed";
+    subcontractorNotes = entry.body;
+  } else if (titleLower.includes("allowance") || titleLower.includes("orange")) {
+    executionType = "selfPerform";
+    materialType = "allowance";
+    allowanceNote = entry.body;
+  } else if (titleLower.includes("issues") || titleLower.includes("red")) {
+    executionType = "selfPerform";
+    materialType = "fixed";
+    notes = entry.body;
+    scopeTitle = "Issues / Risks from Walkthrough";
+  }
+
+  if (titleLower === "entire scope draft" || titleLower === "client discovery") {
+    const firstLine = entry.body.split('\n').find((l) => l.trim().length > 0);
+    if (firstLine) {
+      scopeTitle = firstLine.replace(/^[•\-\*]\s*/, '').substring(0, 50);
+    }
+  }
+
+  const rawLines = entry.body.split('\n').map((l) => l.trim()).filter(Boolean);
+  const components: ScopeComponent[] = rawLines.map((line, i) => ({
+    id: Date.now().toString() + Math.random().toString(36).substring(2, 7) + i,
+    description: line.replace(/^[•\-\*]\s*/, ''),
+  }));
+
+  return {
+    id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+    title: scopeTitle,
+    description: entry.body,
+    components,
+    executionType,
+    subcontractorNotes,
+    materialType,
+    allowanceNote,
+    inclusions: [],
+    exclusions: [],
+    notes,
+    status: "draft",
+    createdAt: now(),
+    updatedAt: now(),
+  };
+}
+
 export default function ScopeOfWorkScreen() {
   const [projectName, setProjectName] = useState("Untitled Project");
   const [status, setStatus] = useState<ScopeDraft["status"]>("draft");
@@ -37,6 +97,48 @@ export default function ScopeOfWorkScreen() {
   const [globalExclusions, setGlobalExclusions] = useState("Structural changes unless noted\nElectrical unless noted\nPermit fees unless noted");
   const [globalNotes, setGlobalNotes] = useState("");
   const [similarOpen, setSimilarOpen] = useState(false);
+
+  const [walkthroughQueue, setWalkthroughQueue] = useState<WalkthroughHandoffEntry[]>([]);
+
+  useEffect(() => {
+    async function loadWalkthroughData() {
+      const wDraft = await walkthroughRepository.getLatest();
+      if (wDraft) {
+        if (wDraft.projectName && projectName === "Untitled Project") {
+          setProjectName(wDraft.projectName);
+        }
+        setWalkthroughQueue(wDraft.scopeHandoffQueue || []);
+      }
+    }
+    loadWalkthroughData();
+  }, []);
+
+  function importWalkthroughQueue() {
+    if (!walkthroughQueue.length) return;
+    const newItems = walkthroughQueue.map(createScopeItemFromHandoff);
+
+    setScopeItems((prev) => {
+      const isBlank = prev.length === 1 && !prev[0].title && !prev[0].description && prev[0].components.length === 0;
+      if (isBlank) return newItems;
+      return [...prev, ...newItems];
+    });
+
+    setStatus("draft");
+    Alert.alert("Walkthrough Imported", "Queue items added to scope.");
+  }
+
+  async function clearWalkthroughQueue() {
+    const wDraft = await walkthroughRepository.getLatest();
+    if (wDraft) {
+      await walkthroughRepository.save({
+        ...wDraft,
+        scopeHandoffQueue: [],
+        scopeReadyForImport: "",
+      });
+    }
+    setWalkthroughQueue([]);
+    Alert.alert("Walkthrough queue cleared", "The handoff queue has been emptied.");
+  }
 
   function addScopeLine() {
     setScopeItems((prev) => [...prev, createScopeItem()]);
@@ -125,6 +227,30 @@ export default function ScopeOfWorkScreen() {
         <Text style={styles.helperText}>
           Scope defines the work. Labor, materials, pricing, and performance happen later.
         </Text>
+      </FieldRateCard>
+
+      <FieldRateCard title="Walkthrough Import">
+        {walkthroughQueue.length === 0 ? (
+          <Text style={styles.emptyText}>No walkthrough handoff queued.</Text>
+        ) : (
+          <View>
+            {walkthroughQueue.map((entry) => (
+              <View key={entry.id} style={styles.queueItem}>
+                <Text style={styles.queueTitle}>{entry.title}</Text>
+                <Text style={styles.queueMeta}>{new Date(entry.createdAt).toLocaleString()}</Text>
+                <Text style={styles.queueBody} numberOfLines={3}>{entry.body}</Text>
+              </View>
+            ))}
+            <View style={styles.importActions}>
+              <Pressable style={styles.secondaryButton} onPress={importWalkthroughQueue}>
+                <Text style={styles.secondaryButtonText}>Import All Queue Items</Text>
+              </Pressable>
+              <Pressable style={[styles.secondaryButton, styles.dangerBtn]} onPress={clearWalkthroughQueue}>
+                <Text style={[styles.secondaryButtonText, styles.dangerText]}>Clear Walkthrough Import Queue</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
       </FieldRateCard>
 
       <FieldRateCard title="Scope Lines">
@@ -380,6 +506,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginTop: 12,
+  },
+  emptyText: {
+    color: COLORS.muted,
+    fontSize: 12,
+  },
+  queueItem: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 12,
+    padding: 10,
+    backgroundColor: COLORS.background,
+    marginBottom: 8,
+  },
+  queueTitle: {
+    color: COLORS.text,
+    fontWeight: "900",
+    fontSize: 14,
+  },
+  queueMeta: {
+    color: COLORS.dim,
+    fontSize: 10,
+    marginBottom: 6,
+  },
+  queueBody: {
+    color: COLORS.text,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  importActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+  dangerBtn: {
+    borderColor: COLORS.danger,
+  },
+  dangerText: {
+    color: COLORS.danger,
   },
   scopeCard: {
     borderWidth: 1,
