@@ -1,6 +1,6 @@
 // src/screens/WalkthroughScreen.tsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
@@ -11,15 +11,16 @@ import { walkthroughRepository } from "../data/repositories/walkthroughRepositor
 import { COLORS } from "../theme/colors";
 import type {
   WalkthroughClientDiscovery,
-  WalkthroughContentBlock,
   WalkthroughDraft,
   WalkthroughTag,
 } from "../types/walkthrough";
 
+const PINK = "#EC4899";
+
 const TAGS: { tag: WalkthroughTag; label: string; meaning: string }[] = [
   { tag: "none", label: "T", meaning: "Normal" },
   { tag: "blue", label: "Blue", meaning: "Self / definite work" },
-  { tag: "cyan", label: "Cyan", meaning: "Sub / trade item" },
+  { tag: "pink", label: "Pink", meaning: "Sub / trade item" },
   { tag: "orange", label: "Orange", meaning: "Maybe / allowance / pending" },
   { tag: "red", label: "Red", meaning: "Issues / Risks" },
 ];
@@ -54,38 +55,9 @@ function now() {
   return new Date().toISOString();
 }
 
-function createTextBlock(
-  text: string,
-  tag: WalkthroughTag,
-  isBold: boolean,
-  isUnderline: boolean
-): WalkthroughContentBlock {
-  return {
-    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-    type: "text",
-    text,
-    tag,
-    createdAt: now(),
-    isBold,
-    isUnderline,
-  } as unknown as WalkthroughContentBlock;
-}
-
-function createImageBlock(tag: WalkthroughTag): WalkthroughContentBlock {
-  return {
-    id: Date.now().toString(),
-    type: "image",
-    uri: "placeholder",
-    caption: "",
-    tag,
-    createdAt: now(),
-  };
-}
-
 function createSnapshot(
   projectName: string,
   title: string,
-  contentBlocks: WalkthroughContentBlock[],
   scopeDraft: string,
   roughRichText?: any
 ) {
@@ -93,23 +65,74 @@ function createSnapshot(
     id: `snap-${Date.now()}`,
     title,
     projectName,
-    contentBlocks,
+    contentBlocks: [],
     scopeDraft,
     roughRichText,
     createdAt: now(),
   };
 }
 
+// Map rich text color to tag
+function getColorTag(colorHex?: string): WalkthroughTag {
+  if (!colorHex || colorHex === COLORS.text) return "none";
+  if (colorHex === COLORS.primary) return "blue";
+  if (colorHex === PINK) return "pink";
+  if (colorHex === COLORS.warning) return "orange";
+  if (colorHex === COLORS.danger) return "red";
+  return "none";
+}
+
+// Extract tags present in a paragraph node
+function getTagsInParagraph(paragraphNode: any): Set<WalkthroughTag> {
+  const tags = new Set<WalkthroughTag>();
+  if (!paragraphNode.content) return tags;
+  
+  paragraphNode.content.forEach((node: any) => {
+    if (node.type === "text") {
+      const colorMark = node.marks?.find((m: any) => m.type === "textStyle");
+      const color = colorMark?.attrs?.color;
+      tags.add(getColorTag(color));
+    }
+  });
+  return tags;
+}
+
+// Group paragraphs by tag for Organized Review
+function groupParagraphsByTag(json: any) {
+  const groups: Record<WalkthroughTag, any[]> = {
+    none: [],
+    blue: [],
+    pink: [],
+    orange: [],
+    red: [],
+  };
+
+  if (!json || !json.content) return groups;
+
+  json.content.forEach((node: any) => {
+    if (node.type === "paragraph" && node.content) {
+      const tags = getTagsInParagraph(node);
+      // If no formatted tags, it belongs to 'none'
+      if (tags.size === 0 || (tags.size === 1 && tags.has("none"))) {
+         groups.none.push(node);
+      } else {
+        // If a paragraph contains a tag, add the whole paragraph to that tag's group
+        // If it contains multiple tags, it appears in multiple groups (preserving context)
+        tags.forEach(tag => {
+          if (tag !== "none") {
+             groups[tag].push(node);
+          }
+        });
+      }
+    }
+  });
+
+  return groups;
+}
+
 export default function WalkthroughScreen() {
   const [projectName, setProjectName] = useState("Untitled Project");
   const [title, setTitle] = useState("Initial Walkthrough");
-  const [activeTag, setActiveTag] = useState<WalkthroughTag>("none");
-  const [inputText, setInputText] = useState("");
-  const [editingBlockId, setEditingBlockId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState("");
-  const [isBold, setIsBold] = useState(false);
-  const [isUnderline, setIsUnderline] = useState(false);
-  const [contentBlocks, setContentBlocks] = useState<WalkthroughContentBlock[]>([]);
   const [scopeDraft, setScopeDraft] = useState("");
   const [snapshots, setSnapshots] = useState<WalkthroughDraft["snapshots"]>([]);
   const [reviewOpen, setReviewOpen] = useState(true);
@@ -117,6 +140,7 @@ export default function WalkthroughScreen() {
   const [clientDiscoveryOpen, setClientDiscoveryOpen] = useState(false);
   const [clientDiscovery, setClientDiscovery] = useState<WalkthroughClientDiscovery>(defaultClientDiscovery);
   const [roughRichText, setRoughRichText] = useState<any>(null);
+  const [editorResetKey, setEditorResetKey] = useState(0);
 
   useEffect(() => {
     async function loadSaved() {
@@ -125,7 +149,6 @@ export default function WalkthroughScreen() {
 
       setProjectName(saved.projectName || "Untitled Project");
       setTitle(saved.title || "Initial Walkthrough");
-      setContentBlocks(saved.contentBlocks || []);
       setScopeDraft(saved.scopeDraft || "");
       setSnapshots(saved.snapshots || []);
       setClientDiscovery(saved.clientDiscovery || defaultClientDiscovery);
@@ -140,7 +163,7 @@ export default function WalkthroughScreen() {
       id: "current-walkthrough-draft",
       projectName,
       title,
-      contentBlocks,
+      contentBlocks: [], // Legacy, keep empty
       scopeDraft,
       snapshots,
       clientDiscovery,
@@ -150,155 +173,13 @@ export default function WalkthroughScreen() {
     };
 
     walkthroughRepository.save(draft);
-  }, [projectName, title, contentBlocks, scopeDraft, snapshots, clientDiscovery, roughRichText]);
+  }, [projectName, title, scopeDraft, snapshots, clientDiscovery, roughRichText]);
 
   function saveSnapshot() {
-    if (contentBlocks.length === 0 && !scopeDraft.trim() && !roughRichText) return;
+    if (!scopeDraft.trim() && !roughRichText) return;
 
     setSnapshots((prev) =>
-      [createSnapshot(projectName, title, contentBlocks, scopeDraft, roughRichText), ...prev].slice(0, 12)
-    );
-  }
-
-  function addTextBlock() {
-    const lines = inputText.split("\n");
-    const newBlocks: WalkthroughContentBlock[] = [];
-
-    for (let i = 0; i < lines.length; i++) {
-      const cleanLine = lines[i].trim();
-      if (cleanLine) {
-        newBlocks.push(createTextBlock(cleanLine, activeTag, isBold, isUnderline));
-      }
-    }
-
-    if (newBlocks.length === 0) return;
-
-    setContentBlocks((prev) => [...prev, ...newBlocks]);
-    setInputText("");
-  }
-
-  function addImagePlaceholder() {
-    setContentBlocks((prev) => [...prev, createImageBlock(activeTag)]);
-  }
-
-  function startEditing(id: string, text: string) {
-    if (editingBlockId && editingBlockId !== id) {
-      setContentBlocks((prev) =>
-        prev.map((block) =>
-          block.id === editingBlockId && block.type === "text"
-            ? { ...block, text: editingText }
-            : block
-        )
-      );
-    }
-    setEditingBlockId(id);
-    setEditingText(text);
-  }
-
-  function saveEditing(id: string) {
-    setContentBlocks((prev) =>
-      prev.map((block) =>
-        block.id === id && block.type === "text"
-          ? { ...block, text: editingText }
-          : block
-      )
-    );
-    setEditingBlockId(null);
-    setEditingText("");
-  }
-
-  function removeBlock(id: string) {
-    saveSnapshot();
-    if (editingBlockId === id) {
-      setEditingBlockId(null);
-      setEditingText("");
-    }
-    setContentBlocks((prev) => prev.filter((block) => block.id !== id));
-  }
-
-  function moveBlockUp(id: string) {
-    saveSnapshot();
-    setContentBlocks((prev) => {
-      const index = prev.findIndex((block) => block.id === id);
-      if (index <= 0) return prev;
-      const copy = [...prev];
-      const temp = copy[index - 1];
-      copy[index - 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
-  }
-
-  function moveBlockDown(id: string) {
-    saveSnapshot();
-    setContentBlocks((prev) => {
-      const index = prev.findIndex((block) => block.id === id);
-      if (index === -1 || index >= prev.length - 1) return prev;
-      const copy = [...prev];
-      const temp = copy[index + 1];
-      copy[index + 1] = copy[index];
-      copy[index] = temp;
-      return copy;
-    });
-  }
-
-  function updateImageCaption(id: string, caption: string) {
-    setContentBlocks((prev) =>
-      prev.map((block) =>
-        block.id === id && block.type === "image" ? { ...block, caption } : block
-      )
-    );
-  }
-
-  function tagCount(tag: WalkthroughTag) {
-    return contentBlocks.filter((block) => (block.tag || "none") === tag).length;
-  }
-
-  function buildDraftTextForTags(tags: WalkthroughTag[] | "all") {
-    const relevantTags = tags === "all" ? TAGS : TAGS.filter((t) => tags.includes(t.tag));
-
-    const textParts = relevantTags.map((tagItem) => {
-      const groupBlocks = contentBlocks.filter((block) => (block.tag || "none") === tagItem.tag);
-      if (groupBlocks.length === 0) return "";
-      
-      const lines = groupBlocks.map((block) => {
-        const text = block.type === "text" ? block.text : block.caption || "Photo block";
-        return `• ${text}`;
-      });
-      return `${tagItem.meaning}:\n${lines.join("\n")}`;
-    }).filter(Boolean);
-
-    return textParts.join("\n\n");
-  }
-
-  function insertToDraft(tags: WalkthroughTag[] | "all") {
-    const textToInsert = buildDraftTextForTags(tags);
-    if (!textToInsert) return;
-
-    setScopeDraft((prev) =>
-      prev.trim() ? `${prev.trim()}\n\n${textToInsert}` : textToInsert
-    );
-  }
-
-  function extractPlainTextFromRichText(json: any): string {
-    if (!json || !json.content) return "";
-    
-    return json.content.map((node: any) => {
-      if (node.type === "paragraph" && node.content) {
-        return node.content.map((textNode: any) => textNode.text || "").join("");
-      }
-      return "";
-    }).filter(Boolean).join("\n\n");
-  }
-
-  function insertRichNotesToDraft() {
-    if (!roughRichText) return;
-    
-    const plainText = extractPlainTextFromRichText(roughRichText);
-    if (!plainText.trim()) return;
-
-    setScopeDraft((prev) =>
-      prev.trim() ? `${prev.trim()}\n\n${plainText}` : plainText
+      [createSnapshot(projectName, title, scopeDraft, roughRichText), ...prev].slice(0, 12)
     );
   }
 
@@ -309,9 +190,9 @@ export default function WalkthroughScreen() {
 
   function saveWholePageAndStartFresh() {
     saveSnapshot();
-    setContentBlocks([]);
     setScopeDraft("");
     setRoughRichText(null);
+    setEditorResetKey(prev => prev + 1);
     setTitle("Initial Walkthrough");
   }
 
@@ -382,6 +263,68 @@ export default function WalkthroughScreen() {
     );
   }
 
+  function extractPlainTextFromRichText(json: any): string {
+    if (!json || !json.content) return "";
+    
+    return json.content.map((node: any) => {
+      if (node.type === "paragraph" && node.content) {
+        return node.content.map((textNode: any) => textNode.text || "").join("");
+      }
+      return "";
+    }).filter(Boolean).join("\n\n");
+  }
+
+  function extractPlainTextByTag(json: any, targetTag: WalkthroughTag | "all"): string {
+    if (!json || !json.content) return "";
+
+    const parts: string[] = [];
+
+    json.content.forEach((node: any) => {
+        if (node.type === "paragraph" && node.content) {
+            let includeParagraph = false;
+            
+            if (targetTag === "all") {
+                includeParagraph = true;
+            } else {
+                const tags = getTagsInParagraph(node);
+                if (targetTag === "none") {
+                    if (tags.size === 0 || (tags.size === 1 && tags.has("none"))) {
+                        includeParagraph = true;
+                    }
+                } else if (tags.has(targetTag)) {
+                    includeParagraph = true;
+                }
+            }
+
+            if (includeParagraph) {
+                const text = node.content.map((textNode: any) => textNode.text || "").join("");
+                if (text) parts.push(`• ${text}`);
+            }
+        }
+    });
+
+    return parts.join("\n");
+  }
+
+
+  function insertRichNotesToDraft(tag: WalkthroughTag | "all") {
+    if (!roughRichText) return;
+    
+    let plainText = "";
+
+    if (tag === "all") {
+        plainText = extractPlainTextFromRichText(roughRichText);
+    } else {
+        plainText = extractPlainTextByTag(roughRichText, tag);
+    }
+    
+    if (!plainText.trim()) return;
+
+    setScopeDraft((prev) =>
+      prev.trim() ? `${prev.trim()}\n\n${plainText}` : plainText
+    );
+  }
+
   function restoreSnapshot(snapshotId: string) {
     const snapshot = snapshots.find((item) => item.id === snapshotId);
     if (!snapshot) return;
@@ -390,10 +333,45 @@ export default function WalkthroughScreen() {
 
     setProjectName(snapshot.projectName);
     setTitle(snapshot.title);
-    setContentBlocks(snapshot.contentBlocks);
     setScopeDraft(snapshot.scopeDraft);
     setRoughRichText(snapshot.roughRichText || null);
+    setEditorResetKey(prev => prev + 1);
   }
+
+  // Render a rich text paragraph natively
+  const renderRichParagraph = (node: any, index: number) => {
+    if (node.type !== "paragraph" || !node.content) return null;
+
+    return (
+      <Text key={index} style={styles.previewParagraph}>
+        {node.content.map((child: any, i: number) => {
+           if (child.type === "text") {
+              const marks = child.marks || [];
+              const isBold = marks.some((m: any) => m.type === "bold");
+              const isUnderline = marks.some((m: any) => m.type === "underline");
+              const colorMark = marks.find((m: any) => m.type === "textStyle");
+              const color = colorMark?.attrs?.color || COLORS.text;
+        
+              return (
+                <Text
+                  key={i}
+                  style={[
+                    { color },
+                    isBold && { fontWeight: "bold" },
+                    isUnderline && { textDecorationLine: "underline" },
+                  ]}
+                >
+                  {child.text}
+                </Text>
+              );
+            }
+            return null;
+        })}
+      </Text>
+    );
+  };
+
+  const groupedParagraphs = useMemo(() => groupParagraphsByTag(roughRichText), [roughRichText]);
 
   return (
     <View style={styles.container}>
@@ -427,90 +405,7 @@ export default function WalkthroughScreen() {
           <Text style={styles.helper}>
             Capture messy jobsite notes. Select text to format colors for field triage.
           </Text>
-          <WalkthroughRichTextEditor value={roughRichText} onChange={setRoughRichText} />
-        </FieldRateCard>
-
-
-        <FieldRateCard title="Inline Notes">
-          {contentBlocks.length === 0 && (
-            <Text style={styles.emptyText}>No walkthrough content yet.</Text>
-          )}
-
-          {contentBlocks.map((block, index) => {
-            const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
-            const isEditing = editingBlockId === block.id;
-
-            return (
-              <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
-                {block.type === "text" ? (
-                  isEditing ? (
-                    <TextInput
-                      style={[
-                        styles.inlineEditInput,
-                        { color: getTagTextColor(block.tag || "none") },
-                        formatProps.isBold && { fontWeight: "bold" },
-                        formatProps.isUnderline && { textDecorationLine: "underline" }
-                      ]}
-                      value={editingText}
-                      onChangeText={setEditingText}
-                      multiline
-                      autoFocus
-                    />
-                  ) : (
-                    <Pressable onPress={() => startEditing(block.id, block.text)}>
-                      <Text style={[
-                        styles.noteText,
-                        { color: getTagTextColor(block.tag || "none") },
-                        formatProps.isBold && { fontWeight: "bold" },
-                        formatProps.isUnderline && { textDecorationLine: "underline" }
-                      ]}>
-                        {block.text}
-                      </Text>
-                    </Pressable>
-                  )
-                ) : (
-                  <View>
-                    <View style={styles.imagePlaceholder}>
-                      <Text style={styles.imageIcon}>📷</Text>
-                      <Text style={styles.imageText}>Photo block placeholder</Text>
-                    </View>
-                    <TextInput
-                      value={block.caption || ""}
-                      onChangeText={(text) => updateImageCaption(block.id, text)}
-                      placeholder="Photo caption..."
-                      placeholderTextColor={COLORS.dim}
-                      style={styles.captionInput}
-                    />
-                  </View>
-                )}
-
-                <View style={styles.itemFooter}>
-                  <View style={styles.reorderControls}>
-                    {index > 0 && (
-                      <Pressable onPress={() => moveBlockUp(block.id)}>
-                        <Text style={styles.controlText}>↑</Text>
-                      </Pressable>
-                    )}
-                    {index < contentBlocks.length - 1 && (
-                      <Pressable onPress={() => moveBlockDown(block.id)}>
-                        <Text style={styles.controlText}>↓</Text>
-                      </Pressable>
-                    )}
-                  </View>
-                  <View style={styles.actionControls}>
-                    {isEditing && (
-                      <Pressable onPress={() => saveEditing(block.id)}>
-                        <Text style={styles.doneText}>Done</Text>
-                      </Pressable>
-                    )}
-                    <Pressable onPress={() => removeBlock(block.id)}>
-                      <Text style={styles.removeText}>Remove</Text>
-                    </Pressable>
-                  </View>
-                </View>
-              </View>
-            );
-          })}
+          <WalkthroughRichTextEditor value={roughRichText} onChange={setRoughRichText} resetKey={editorResetKey} />
         </FieldRateCard>
 
         <FieldRateCard title="Organized Review">
@@ -523,7 +418,7 @@ export default function WalkthroughScreen() {
           <View style={styles.countGrid}>
             {TAGS.map((item) => (
               <View key={item.tag} style={styles.countBox}>
-                <Text style={styles.countValue}>{tagCount(item.tag)}</Text>
+                <Text style={styles.countValue}>{groupedParagraphs[item.tag].length}</Text>
                 <Text style={styles.countLabel}>{item.meaning}</Text>
               </View>
             ))}
@@ -532,65 +427,47 @@ export default function WalkthroughScreen() {
           {reviewOpen && (
             <View style={styles.noteList}>
               {TAGS.map((tagItem) => {
-                const groupBlocks = contentBlocks.filter((block) => (block.tag || "none") === tagItem.tag);
-                if (groupBlocks.length === 0) return null;
+                const paragraphs = groupedParagraphs[tagItem.tag];
+                if (paragraphs.length === 0) return null;
 
                 return (
                   <View key={tagItem.tag} style={styles.groupContainer}>
                     <Text style={[styles.groupTitle, { color: getTagTextColor(tagItem.tag) }]}>
                       {tagItem.meaning}
                     </Text>
-                    {groupBlocks.map((block) => {
-                      const formatProps = block as unknown as { isBold?: boolean; isUnderline?: boolean };
-
-                      return (
-                        <View key={block.id} style={[styles.noteItem, tagStyle(block.tag || "none")]}>
-                          <Text style={[
-                            styles.noteText,
-                            { color: getTagTextColor(block.tag || "none") },
-                            formatProps.isBold && { fontWeight: "bold" },
-                            formatProps.isUnderline && { textDecorationLine: "underline" }
-                          ]}>
-                            {block.type === "text" ? block.text : block.caption || "Photo block"}
-                          </Text>
+                    {paragraphs.map((node, index) => (
+                        <View key={index} style={[styles.noteItem, tagStyle(tagItem.tag)]}>
+                           {renderRichParagraph(node, index)}
                         </View>
-                      );
-                    })}
+                    ))}
                   </View>
                 );
               })}
-
-              <View style={styles.insertActions}>
-                <Pressable style={styles.insertButton} onPress={() => insertToDraft(["blue"])}>
-                  <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Insert Blue Items</Text>
-                </Pressable>
-                <Pressable style={styles.insertButton} onPress={() => insertToDraft(["cyan"])}>
-                  <Text style={[styles.insertButtonText, { color: getTagTextColor("cyan") }]}>Insert Cyan Items</Text>
-                </Pressable>
-                <Pressable style={styles.insertButton} onPress={() => insertToDraft(["orange"])}>
-                  <Text style={[styles.insertButtonText, { color: getTagTextColor("orange") }]}>Insert Orange Items</Text>
-                </Pressable>
-                <Pressable style={styles.insertButton} onPress={() => insertToDraft(["red"])}>
-                  <Text style={[styles.insertButtonText, { color: getTagTextColor("red") }]}>Insert Red Items</Text>
-                </Pressable>
-                <Pressable style={styles.insertButton} onPress={() => insertToDraft("all")}>
-                  <Text style={[styles.insertButtonText, { color: COLORS.text }]}>Insert All</Text>
-                </Pressable>
-              </View>
             </View>
           )}
         </FieldRateCard>
 
         <FieldRateCard title="Rough Scope Draft">
           <View style={styles.discoveryInsertSection}>
-            <Text style={styles.label}>Draft Actions</Text>
+            
+            <Text style={styles.label}>Insert Review Items</Text>
             <View style={styles.insertActions}>
-              <Pressable style={styles.insertButton} onPress={insertRichNotesToDraft}>
-                <Text style={styles.insertButtonText}>Insert Rough Notes</Text>
+              <Pressable style={styles.insertButton} onPress={() => insertRichNotesToDraft("blue")}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("blue") }]}>Insert Blue Items</Text>
               </Pressable>
-              <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("all")}>
-                <Text style={styles.insertButtonText}>Insert All Discovery</Text>
+              <Pressable style={styles.insertButton} onPress={() => insertRichNotesToDraft("pink")}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("pink") }]}>Insert Pink Items</Text>
               </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertRichNotesToDraft("orange")}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("orange") }]}>Insert Orange Items</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={() => insertRichNotesToDraft("red")}>
+                  <Text style={[styles.insertButtonText, { color: getTagTextColor("red") }]}>Insert Red Items</Text>
+              </Pressable>
+            </View>
+
+            <Text style={[styles.label, {marginTop: 16}]}>Insert From Client Discovery</Text>
+            <View style={styles.insertActions}>
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("concepts")}>
                 <Text style={styles.insertButtonText}>Insert Concepts</Text>
               </Pressable>
@@ -603,13 +480,23 @@ export default function WalkthroughScreen() {
               <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("timeline")}>
                 <Text style={styles.insertButtonText}>Insert Timeline</Text>
               </Pressable>
-              <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={clearScopeDraft}>
-                <Text style={[styles.insertButtonText, styles.dangerText]}>Clear Draft</Text>
-              </Pressable>
-              <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={saveWholePageAndStartFresh}>
-                <Text style={[styles.insertButtonText, styles.dangerText]}>Save Version & Start Fresh</Text>
-              </Pressable>
             </View>
+
+             <Text style={[styles.label, {marginTop: 16}]}>Draft Actions</Text>
+             <View style={styles.insertActions}>
+                <Pressable style={styles.insertButton} onPress={() => insertRichNotesToDraft("all")}>
+                    <Text style={styles.insertButtonText}>Insert All Rough Notes</Text>
+                </Pressable>
+                <Pressable style={styles.insertButton} onPress={() => insertClientDiscovery("all")}>
+                    <Text style={styles.insertButtonText}>Insert All Discovery</Text>
+                </Pressable>
+                <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={clearScopeDraft}>
+                    <Text style={[styles.insertButtonText, styles.dangerText]}>Clear Draft</Text>
+                </Pressable>
+                <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={saveWholePageAndStartFresh}>
+                    <Text style={[styles.insertButtonText, styles.dangerText]}>Save Version & Start Fresh</Text>
+                </Pressable>
+             </View>
           </View>
 
           <TextInput
@@ -677,7 +564,8 @@ export default function WalkthroughScreen() {
 
 function tagStyle(tag: WalkthroughTag) {
   if (tag === "blue") return styles.blueTag;
-  if (tag === "cyan") return styles.cyanTag;
+  if (tag === "cyan") return styles.cyanTag; // Keep for fallback, though not in UI
+  if (tag === "pink") return styles.pinkTag;
   if (tag === "orange") return styles.orangeTag;
   if (tag === "red") return styles.redTag;
   return styles.normalTag;
@@ -685,19 +573,13 @@ function tagStyle(tag: WalkthroughTag) {
 
 function getTagTextColor(tag: WalkthroughTag) {
   if (tag === "blue") return COLORS.primary;
-  if (tag === "cyan") return COLORS.primary;
+  if (tag === "cyan") return COLORS.primary; // Keep for fallback
+  if (tag === "pink") return PINK;
   if (tag === "orange") return COLORS.warning;
   if (tag === "red") return COLORS.danger;
   return COLORS.text;
 }
 
-function getTagBorderColor(tag: WalkthroughTag) {
-  if (tag === "blue") return COLORS.primary;
-  if (tag === "cyan") return COLORS.primary;
-  if (tag === "orange") return COLORS.warning;
-  if (tag === "red") return COLORS.danger;
-  return COLORS.border;
-}
 
 const styles = StyleSheet.create({
   container: {
@@ -776,96 +658,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginBottom: 12,
   },
-  toolbar: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    alignItems: "center",
-    gap: 8,
-    marginBottom: 12,
-  },
-  tagButton: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    backgroundColor: COLORS.surface,
-  },
-  tagButtonActive: {
-    backgroundColor: COLORS.primaryDim,
-    borderColor: COLORS.primary,
-  },
-  tagText: {
-    color: COLORS.text,
-    fontSize: 11,
-    fontWeight: "800",
-  },
-  blueBorder: {
-    borderColor: COLORS.primary,
-  },
-  cyanBorder: {
-    borderColor: COLORS.primary,
-  },
-  orangeBorder: {
-    borderColor: COLORS.warning,
-  },
-  redBorder: {
-    borderColor: COLORS.danger,
-  },
-  formatGroup: {
-    flexDirection: "row",
-    gap: 8,
-    marginLeft: "auto",
-  },
-  formatButton: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: COLORS.surface,
-  },
-  formatButtonActive: {
-    backgroundColor: COLORS.primaryDim,
-    borderColor: COLORS.primary,
-  },
-  formatText: {
-    color: COLORS.text,
-    fontSize: 13,
-  },
-  cameraButton: {
-    borderWidth: 1,
-    borderColor: COLORS.primary,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    backgroundColor: COLORS.primaryDim,
-  },
-  cameraText: {
-    color: COLORS.primary,
-    fontWeight: "900",
-  },
-  roughInput: {
-    minHeight: 150,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    padding: 12,
-    color: COLORS.text,
-    backgroundColor: COLORS.background,
-    textAlignVertical: "top",
-  },
-  primaryButton: {
-    backgroundColor: COLORS.primary,
-    borderRadius: 12,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 12,
-  },
-  primaryButtonText: {
-    color: COLORS.background,
-    fontWeight: "900",
-  },
   emptyText: {
     color: COLORS.muted,
     fontSize: 12,
@@ -894,41 +686,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 18,
   },
-  inlineEditInput: {
-    fontSize: 13,
-    lineHeight: 18,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 8,
-    backgroundColor: COLORS.background,
-    textAlignVertical: "top",
-  },
-  itemFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  reorderControls: {
-    flexDirection: "row",
-    gap: 16,
-  },
-  controlText: {
-    color: COLORS.dim,
-    fontSize: 16,
-    fontWeight: "900",
-  },
-  actionControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 16,
-  },
-  doneText: {
-    color: COLORS.primary,
-    fontSize: 11,
-    fontWeight: "800",
-  },
   normalTag: {
     borderColor: COLORS.border,
   },
@@ -938,42 +695,14 @@ const styles = StyleSheet.create({
   cyanTag: {
     borderColor: COLORS.primary,
   },
+  pinkTag: {
+    borderColor: PINK,
+  },
   orangeTag: {
     borderColor: COLORS.warning,
   },
   redTag: {
     borderColor: COLORS.danger,
-  },
-  imagePlaceholder: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
-    paddingVertical: 22,
-    alignItems: "center",
-    backgroundColor: COLORS.surface,
-  },
-  imageIcon: {
-    fontSize: 28,
-    marginBottom: 6,
-  },
-  imageText: {
-    color: COLORS.muted,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  captionInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    padding: 10,
-    color: COLORS.text,
-    backgroundColor: COLORS.background,
-    marginTop: 8,
-  },
-  removeText: {
-    color: COLORS.danger,
-    fontSize: 11,
-    fontWeight: "800",
   },
   libraryToggle: {
     color: COLORS.primary,
@@ -1071,5 +800,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: 8,
     textAlign: "right",
+  },
+  previewParagraph: {
+    marginBottom: 0,
+    lineHeight: 20,
+    fontSize: 14,
   },
 });
