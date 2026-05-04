@@ -2,14 +2,17 @@
 
 import React, { useEffect, useState } from "react";
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
 import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
 import { scopeRepository } from "../data/repositories/scopeRepository";
 import { walkthroughRepository } from "../data/repositories/walkthroughRepository";
+import { taskRepository } from "../data/repositories/taskRepository";
 import { COLORS } from "../theme/colors";
 import type { ScopeComponent, ScopeDraft, ScopeItem, ScopeExecutionType, ScopeMaterialType } from "../types/scope";
 import type { WalkthroughHandoffEntry } from "../types/walkthrough";
+import type { TaskDraft, TaskItem } from "../types/tasks";
 
 function now() {
   return new Date().toISOString();
@@ -90,6 +93,7 @@ function createScopeItemFromHandoff(entry: WalkthroughHandoffEntry): ScopeItem {
 }
 
 export default function ScopeOfWorkScreen() {
+  const navigation = useNavigation<any>();
   const [projectName, setProjectName] = useState("Untitled Project");
   const [status, setStatus] = useState<ScopeDraft["status"]>("draft");
   const [scopeItems, setScopeItems] = useState<ScopeItem[]>([createScopeItem()]);
@@ -204,6 +208,84 @@ export default function ScopeOfWorkScreen() {
 
     await scopeRepository.save(draft);
     Alert.alert("Scope Saved", "Your scope draft has been saved.");
+  }
+
+  async function generateTasksFromScope() {
+    const newTasks: TaskItem[] = [];
+
+    scopeItems.forEach((item) => {
+      if (item.components && item.components.length > 0) {
+        item.components.forEach((comp) => {
+          const title = comp.description ? comp.description.substring(0, 60) : item.title || "Untitled Task";
+          newTasks.push({
+            id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+            projectName,
+            scopeItemId: item.id,
+            scopeItemTitle: item.title,
+            source: "scope",
+            title,
+            description: comp.description,
+            executionType: item.executionType,
+            materialType: item.materialType,
+            status: "draft",
+            createdAt: now(),
+            updatedAt: now(),
+          });
+        });
+      } else {
+        const lines = item.description 
+          ? item.description.split('\n').map(l => l.trim().replace(/^[•\-\*]\s*/, '')).filter(Boolean) 
+          : [];
+        
+        if (lines.length > 0) {
+          lines.forEach((line) => {
+            newTasks.push({
+              id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+              projectName,
+              scopeItemId: item.id,
+              scopeItemTitle: item.title,
+              source: "scope",
+              title: line.substring(0, 60),
+              description: line,
+              executionType: item.executionType,
+              materialType: item.materialType,
+              status: "draft",
+              createdAt: now(),
+              updatedAt: now(),
+            });
+          });
+        } else {
+          newTasks.push({
+              id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
+              projectName,
+              scopeItemId: item.id,
+              scopeItemTitle: item.title,
+              source: "scope",
+              title: item.title || "Untitled Task",
+              description: item.description,
+              executionType: item.executionType,
+              materialType: item.materialType,
+              status: "draft",
+              createdAt: now(),
+              updatedAt: now(),
+            });
+        }
+      }
+    });
+
+    const currentDraft = await taskRepository.getLatest();
+    const manualTasks = currentDraft ? currentDraft.tasks.filter(t => t.source === "manual") : [];
+    
+    const newDraft: TaskDraft = {
+      id: currentDraft ? currentDraft.id : "current-task-draft",
+      projectName,
+      tasks: [...manualTasks, ...newTasks],
+      createdAt: currentDraft ? currentDraft.createdAt : now(),
+      updatedAt: now(),
+    };
+
+    await taskRepository.save(newDraft);
+    Alert.alert("Task Breakdown Generated", "Tasks have been successfully created from your scope.");
   }
 
   return (
@@ -398,6 +480,24 @@ export default function ScopeOfWorkScreen() {
         </Pressable>
       </FieldRateCard>
 
+      <FieldRateCard title="Task Breakdown">
+        <Text style={styles.helperText}>
+          Convert your finalized scope items into actionable field tasks for estimation and tracking.
+        </Text>
+        
+        <View style={styles.actionRowAlt}>
+          <Pressable style={styles.secondaryButton} onPress={generateTasksFromScope}>
+            <Text style={styles.secondaryButtonText}>Generate Tasks From Scope</Text>
+          </Pressable>
+        </View>
+
+        <View style={styles.actionRowAlt}>
+          <Pressable style={styles.primaryButton} onPress={() => navigation.navigate("Tasks")}>
+            <Text style={styles.primaryButtonText}>Open / Review Task Breakdown</Text>
+          </Pressable>
+        </View>
+      </FieldRateCard>
+
       <FieldRateCard title="Similar Past Scopes">
         <Pressable onPress={() => setSimilarOpen((value) => !value)}>
           <Text style={styles.libraryToggle}>
@@ -506,6 +606,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     marginTop: 12,
+    marginBottom: 8,
   },
   emptyText: {
     color: COLORS.muted,
@@ -685,6 +786,11 @@ const styles = StyleSheet.create({
     gap: 10,
     marginHorizontal: 16,
     marginBottom: 24,
+  },
+  actionRowAlt: {
+    flexDirection: "row",
+    gap: 10,
+    marginBottom: 10,
   },
   secondaryButton: {
     flex: 1,
