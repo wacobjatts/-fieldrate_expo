@@ -21,6 +21,13 @@ export type WalkthroughContentBlock =
       createdAt: string;
     };
 
+export type WalkthroughHandoffEntry = {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+};
+
 export type WalkthroughSnapshot = {
   id: string;
   title: string;
@@ -66,7 +73,8 @@ export type WalkthroughDraft = {
   snapshots: WalkthroughSnapshot[];
   clientDiscovery?: WalkthroughClientDiscovery;
   roughRichText?: any;
-  scopeHandoffDraft?: string;
+  scopeHandoffQueue?: WalkthroughHandoffEntry[];
+  scopeReadyForImport?: string;
   createdAt: string;
   updatedAt: string;
 };
