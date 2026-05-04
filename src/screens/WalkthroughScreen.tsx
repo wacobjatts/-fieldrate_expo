@@ -134,6 +134,8 @@ export default function WalkthroughScreen() {
   const [projectName, setProjectName] = useState("Untitled Project");
   const [title, setTitle] = useState("Initial Walkthrough");
   const [scopeDraft, setScopeDraft] = useState("");
+  const [scopeHandoffDraft, setScopeHandoffDraft] = useState("");
+  const [selectedScopeText, setSelectedScopeText] = useState("");
   const [snapshots, setSnapshots] = useState<WalkthroughDraft["snapshots"]>([]);
   const [reviewOpen, setReviewOpen] = useState(true);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -150,6 +152,7 @@ export default function WalkthroughScreen() {
       setProjectName(saved.projectName || "Untitled Project");
       setTitle(saved.title || "Initial Walkthrough");
       setScopeDraft(saved.scopeDraft || "");
+      setScopeHandoffDraft(saved.scopeHandoffDraft || "");
       setSnapshots(saved.snapshots || []);
       setClientDiscovery(saved.clientDiscovery || defaultClientDiscovery);
       setRoughRichText(saved.roughRichText || null);
@@ -165,6 +168,7 @@ export default function WalkthroughScreen() {
       title,
       contentBlocks: [], // Legacy, keep empty
       scopeDraft,
+      scopeHandoffDraft,
       snapshots,
       clientDiscovery,
       roughRichText,
@@ -173,7 +177,7 @@ export default function WalkthroughScreen() {
     };
 
     walkthroughRepository.save(draft);
-  }, [projectName, title, scopeDraft, snapshots, clientDiscovery, roughRichText]);
+  }, [projectName, title, scopeDraft, scopeHandoffDraft, snapshots, clientDiscovery, roughRichText]);
 
   function saveSnapshot() {
     if (!scopeDraft.trim() && !roughRichText) return;
@@ -306,7 +310,6 @@ export default function WalkthroughScreen() {
     return parts.join("\n");
   }
 
-
   function insertRichNotesToDraft(tag: WalkthroughTag | "all") {
     if (!roughRichText) return;
     
@@ -325,6 +328,24 @@ export default function WalkthroughScreen() {
     );
   }
 
+  function sendEntireDraftToScope() {
+    if (!scopeDraft.trim()) return;
+    setScopeHandoffDraft(prev => prev.trim() ? `${prev.trim()}\n\n${scopeDraft}` : scopeDraft);
+  }
+
+  function sendSelectedToScope() {
+    if (!selectedScopeText.trim()) return;
+    setScopeHandoffDraft(prev => prev.trim() ? `${prev.trim()}\n\n${selectedScopeText}` : selectedScopeText);
+  }
+
+  function clearSelection() {
+    setSelectedScopeText("");
+  }
+
+  function clearHandoffQueue() {
+    setScopeHandoffDraft("");
+  }
+
   function restoreSnapshot(snapshotId: string) {
     const snapshot = snapshots.find((item) => item.id === snapshotId);
     if (!snapshot) return;
@@ -336,6 +357,10 @@ export default function WalkthroughScreen() {
     setScopeDraft(snapshot.scopeDraft);
     setRoughRichText(snapshot.roughRichText || null);
     setEditorResetKey(prev => prev + 1);
+  }
+
+  function deleteSnapshot(snapshotId: string) {
+    setSnapshots((prev) => prev.filter((s) => s.id !== snapshotId));
   }
 
   // Render a rich text paragraph natively
@@ -507,6 +532,31 @@ export default function WalkthroughScreen() {
             value={scopeDraft}
             onChangeText={setScopeDraft}
           />
+
+          <View style={styles.discoveryInsertSection}>
+            <Text style={[styles.label, {marginTop: 16}]}>Selected Text for Scope</Text>
+            <TextInput
+              style={[styles.draftInput, { minHeight: 80 }]}
+              multiline
+              placeholder="Paste or type specific text to send..."
+              placeholderTextColor={COLORS.dim}
+              value={selectedScopeText}
+              onChangeText={setSelectedScopeText}
+            />
+
+            <Text style={[styles.label, {marginTop: 16}]}>Send to Office / Scope</Text>
+            <View style={styles.insertActions}>
+              <Pressable style={styles.insertButton} onPress={sendEntireDraftToScope}>
+                  <Text style={styles.insertButtonText}>Send Entire Draft to Scope</Text>
+              </Pressable>
+              <Pressable style={styles.insertButton} onPress={sendSelectedToScope}>
+                  <Text style={styles.insertButtonText}>Send Selected Section to Scope</Text>
+              </Pressable>
+              <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={clearSelection}>
+                  <Text style={[styles.insertButtonText, styles.dangerText]}>Clear Selection</Text>
+              </Pressable>
+            </View>
+          </View>
         </FieldRateCard>
 
         <FieldRateCard title="Document Preview">
@@ -514,6 +564,21 @@ export default function WalkthroughScreen() {
           <Text style={styles.previewText}>
             {scopeDraft.trim() || "Your rough scope draft will preview here."}
           </Text>
+        </FieldRateCard>
+
+        <FieldRateCard title="Scope Handoff Queue">
+          {scopeHandoffDraft ? (
+            <Text style={styles.previewText}>{scopeHandoffDraft}</Text>
+          ) : (
+            <Text style={styles.emptyText}>Nothing sent to scope yet.</Text>
+          )}
+          {scopeHandoffDraft ? (
+             <View style={[styles.insertActions, {marginTop: 16}]}>
+                <Pressable style={[styles.insertButton, styles.dangerBtn]} onPress={clearHandoffQueue}>
+                  <Text style={[styles.insertButtonText, styles.dangerText]}>Clear Handoff Queue</Text>
+                </Pressable>
+             </View>
+          ) : null}
         </FieldRateCard>
 
         <FieldRateCard title="Previous Versions">
@@ -531,13 +596,20 @@ export default function WalkthroughScreen() {
 
               {snapshots.map((snapshot) => (
                 <View key={snapshot.id} style={styles.historyItem}>
-                  <Text style={styles.historyTitle}>{snapshot.title}</Text>
-                  <Text style={styles.historyMeta}>
-                    {new Date(snapshot.createdAt).toLocaleString()}
-                  </Text>
-                  <Pressable onPress={() => restoreSnapshot(snapshot.id)}>
-                    <Text style={styles.restoreText}>Restore</Text>
-                  </Pressable>
+                  <View style={styles.historyTitleContent}>
+                    <Text style={styles.historyTitle} numberOfLines={1}>{snapshot.title}</Text>
+                    <Text style={styles.historyMeta}>
+                      {new Date(snapshot.createdAt).toLocaleString()}
+                    </Text>
+                  </View>
+                  <View style={styles.historyActions}>
+                    <Pressable onPress={() => restoreSnapshot(snapshot.id)}>
+                      <Text style={styles.restoreText}>Restore</Text>
+                    </Pressable>
+                    <Pressable onPress={() => deleteSnapshot(snapshot.id)}>
+                      <Text style={[styles.restoreText, styles.dangerText]}>Delete</Text>
+                    </Pressable>
+                  </View>
                 </View>
               ))}
             </View>
@@ -564,7 +636,6 @@ export default function WalkthroughScreen() {
 
 function tagStyle(tag: WalkthroughTag) {
   if (tag === "blue") return styles.blueTag;
-  if (tag === "cyan") return styles.cyanTag; // Keep for fallback, though not in UI
   if (tag === "pink") return styles.pinkTag;
   if (tag === "orange") return styles.orangeTag;
   if (tag === "red") return styles.redTag;
@@ -573,13 +644,11 @@ function tagStyle(tag: WalkthroughTag) {
 
 function getTagTextColor(tag: WalkthroughTag) {
   if (tag === "blue") return COLORS.primary;
-  if (tag === "cyan") return COLORS.primary; // Keep for fallback
   if (tag === "pink") return PINK;
   if (tag === "orange") return COLORS.warning;
   if (tag === "red") return COLORS.danger;
   return COLORS.text;
 }
-
 
 const styles = StyleSheet.create({
   container: {
@@ -681,18 +750,10 @@ const styles = StyleSheet.create({
     padding: 10,
     marginBottom: 10,
   },
-  noteText: {
-    color: COLORS.text,
-    fontSize: 13,
-    lineHeight: 18,
-  },
   normalTag: {
     borderColor: COLORS.border,
   },
   blueTag: {
-    borderColor: COLORS.primary,
-  },
-  cyanTag: {
     borderColor: COLORS.primary,
   },
   pinkTag: {
@@ -785,6 +846,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 10,
     backgroundColor: COLORS.background,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  historyTitleContent: {
+    flex: 1,
+    marginRight: 16,
   },
   historyTitle: {
     color: COLORS.text,
@@ -795,11 +864,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     marginTop: 4,
   },
+  historyActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
   restoreText: {
     color: COLORS.primary,
     fontWeight: "800",
-    marginTop: 8,
-    textAlign: "right",
   },
   previewParagraph: {
     marginBottom: 0,
