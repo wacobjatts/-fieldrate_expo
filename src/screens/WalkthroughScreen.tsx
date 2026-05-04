@@ -6,6 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-
 import FieldRateCard from "../components/fieldrate/FieldRateCard";
 import FieldRateScreen from "../components/fieldrate/FieldRateScreen";
 import ClientDiscoveryCard from "../components/walkthrough/ClientDiscoveryCard";
+import WalkthroughRichTextEditor from "../components/walkthrough/WalkthroughRichTextEditor";
 import { walkthroughRepository } from "../data/repositories/walkthroughRepository";
 import { COLORS } from "../theme/colors";
 import type {
@@ -113,6 +114,7 @@ export default function WalkthroughScreen() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [clientDiscoveryOpen, setClientDiscoveryOpen] = useState(false);
   const [clientDiscovery, setClientDiscovery] = useState<WalkthroughClientDiscovery>(defaultClientDiscovery);
+  const [roughRichText, setRoughRichText] = useState<any>(null);
 
   useEffect(() => {
     async function loadSaved() {
@@ -385,62 +387,7 @@ export default function WalkthroughScreen() {
           <Text style={styles.helper}>
             Capture messy jobsite notes. Photos are inline blocks. Colors are field triage only.
           </Text>
-
-          <View style={styles.toolbar}>
-            {TAGS.map((item) => (
-              <Pressable
-                key={item.tag}
-                style={[
-                  styles.tagButton,
-                  activeTag === item.tag && styles.tagButtonActive,
-                  item.tag === "blue" && styles.blueBorder,
-                  item.tag === "cyan" && styles.cyanBorder,
-                  item.tag === "orange" && styles.orangeBorder,
-                  item.tag === "red" && styles.redBorder,
-                ]}
-                onPress={() => setActiveTag(item.tag)}
-              >
-                <Text style={styles.tagText}>{item.label}</Text>
-              </Pressable>
-            ))}
-
-            <View style={styles.formatGroup}>
-              <Pressable
-                style={[styles.formatButton, isBold && styles.formatButtonActive]}
-                onPress={() => setIsBold(!isBold)}
-              >
-                <Text style={[styles.formatText, { fontWeight: "bold" }]}>B</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.formatButton, isUnderline && styles.formatButtonActive]}
-                onPress={() => setIsUnderline(!isUnderline)}
-              >
-                <Text style={[styles.formatText, { textDecorationLine: "underline" }]}>U</Text>
-              </Pressable>
-            </View>
-
-            <Pressable style={styles.cameraButton} onPress={addImagePlaceholder}>
-              <Text style={styles.cameraText}>📷</Text>
-            </Pressable>
-          </View>
-
-          <TextInput
-            style={[
-              styles.roughInput,
-              { color: getTagTextColor(activeTag), borderColor: getTagBorderColor(activeTag) },
-              isBold && { fontWeight: "bold" },
-              isUnderline && { textDecorationLine: "underline" }
-            ]}
-            multiline
-            placeholder="Type rough walkthrough notes..."
-            placeholderTextColor={COLORS.dim}
-            value={inputText}
-            onChangeText={setInputText}
-          />
-
-          <Pressable style={styles.primaryButton} onPress={addTextBlock}>
-            <Text style={styles.primaryButtonText}>Add Text Block</Text>
-          </Pressable>
+          <WalkthroughRichTextEditor value={roughRichText} onChange={setRoughRichText} />
         </FieldRateCard>
 
 
