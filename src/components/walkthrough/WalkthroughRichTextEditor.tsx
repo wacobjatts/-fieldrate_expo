@@ -14,11 +14,13 @@ const PINK = "#EC4899";
 export type WalkthroughRichTextEditorProps = {
   value: any;
   onChange: (next: any) => void;
+  resetKey?: number;
 };
 
 export default function WalkthroughRichTextEditor({
   value,
   onChange,
+  resetKey,
 }: WalkthroughRichTextEditorProps) {
   const editor = useEditor({
     extensions: [
@@ -35,13 +37,17 @@ export default function WalkthroughRichTextEditor({
 
   useEffect(() => {
     if (editor && value && !editor.isDestroyed) {
-      // Only update if the editor is completely empty to allow async loading of initial value
-      // Avoids cursor jumping if the user is already typing
       if (editor.isEmpty && Object.keys(value).length > 0) {
         editor.commands.setContent(value);
       }
     }
   }, [value, editor]);
+
+  useEffect(() => {
+    if (editor && !editor.isDestroyed && resetKey !== undefined) {
+      editor.commands.setContent("<p></p>");
+    }
+  }, [resetKey, editor]);
 
   const applyColor = (colorHex: string) => {
     if (!editor) return;
