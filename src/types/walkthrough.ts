@@ -1,3 +1,5 @@
+// src/types/walkthrough.ts
+
 export type WalkthroughTag = "none" | "blue" | "cyan" | "orange" | "red";
 
 export type WalkthroughContentBlock =
@@ -25,6 +27,7 @@ export type WalkthroughSnapshot = {
   projectName: string;
   contentBlocks: WalkthroughContentBlock[];
   scopeDraft: string;
+  roughRichText?: any;
   createdAt: string;
 };
 
@@ -62,6 +65,7 @@ export type WalkthroughDraft = {
   scopeDraft: string;
   snapshots: WalkthroughSnapshot[];
   clientDiscovery?: WalkthroughClientDiscovery;
+  roughRichText?: any;
   createdAt: string;
   updatedAt: string;
 };
