@@ -214,17 +214,21 @@ export default function ScopeOfWorkScreen() {
     const newTasks: TaskItem[] = [];
 
     scopeItems.forEach((item) => {
-      if (item.components && item.components.length > 0) {
-        item.components.forEach((comp) => {
-          const title = comp.description ? comp.description.substring(0, 60) : item.title || "Untitled Task";
+      // Filter out components with purely empty descriptions
+      const validComponents = item.components?.filter(comp => comp.description && comp.description.trim() !== "") || [];
+
+      if (validComponents.length > 0) {
+        validComponents.forEach((comp) => {
+          const cleanDesc = comp.description.trim().replace(/^[•\-\*]\s*/, '');
+          const title = cleanDesc.substring(0, 60);
           newTasks.push({
             id: Date.now().toString() + Math.random().toString(36).substring(2, 7),
             projectName,
             scopeItemId: item.id,
             scopeItemTitle: item.title,
             source: "scope",
-            title,
-            description: comp.description,
+            title: title || item.title || "Untitled Task",
+            description: cleanDesc,
             executionType: item.executionType,
             materialType: item.materialType,
             status: "draft",
